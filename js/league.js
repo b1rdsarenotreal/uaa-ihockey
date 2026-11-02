@@ -1,0 +1,657 @@
+// League (dynasty) lifecycle: creating the league, saving results,
+// simulating, adding teams and conferences, and rolling into new seasons.
+
+import { DEFAULT_LOGOS, AAU_LOGO_SET } from './logo-import.js?v=20261102104644';
+import { START_YEAR, CONFERENCES, COACHES, SIDES, sideOf, conferencesFor, seedTeams, makeTeam, fillSite } from './data.js?v=20261102104644';
+import { generateSchedule, blankGame, DAY_ORDER, DEFAULT_REG_WEEKS, DEFAULT_TOURNEY_WEEKS, DEFAULT_CONF_MATCHES, DEFAULT_MAX_MATCHES, PER_WEEK, confWeeksFor, confWeeksMax, confRounds, confSeriesCounts, confTarget } from './schedule.js?v=20261102104644';
+import { simulateGame, estimateHitsErrors } from './sim.js?v=20261102104644';
+import { generatePoll, releaseDuePolls } from './polls.js?v=20261102104644';
+import { replayRatings, ensureBase } from './ratings.js?v=20261102104644';
+import { progress, lockField, postWeeks, allEvents, regWeeksOf, fieldSize, DEFAULT_NCAA, OLD_DEFAULT_NCAA, pickConfHosts, postseasonFinish, citySiteNames, wsTeams } from './postseason.js?v=20261102104644';
+import { isFinal, records, INDEPENDENT } from './standings.js?v=20261102104644';
+import { rng, normal, clamp, hashStr } from './util.js?v=20261102104644';
+
+export const SCHEMA_VERSION = 4;
+
+// Men's hockey: a home-and-home with each conference opponent and one game
+// against everyone else; Frozen Four semifinals Thursday, final Saturday.
+// Women's: two series with each conference opponent and a series against
+// everyone else; Frozen Four Friday and Sunday. Both: 8-team national
+// tournaments, the quarterfinals at the higher seed's rink.
+const MEN_SETTINGS = { confSeries: 'split', nonConf: 'single', finalDays: ['Thu', 'Sat'], mcwsVenue: 'Xcel Energy Center', mcwsCity: 'St. Paul, Minn.' };
+export function defaultSettings(side = 'women') {
+  const base = {
+    volatility: 1, confTourney: {}, confFormat: {}, mcwsName: 'Frozen Four', mcwsVenue: 'Ridder Arena', mcwsCity: 'Minneapolis, Minn.', aqMin: 4, development: 'normal', form: 'normal',
+    periods: 3, confDays: 'fs', confWeekend: {}, confSeries: 'twice', nonConf: 'series', finalDays: ['Fri', 'Sun'],
+    regWeeks: DEFAULT_REG_WEEKS, tourneyWeeks: DEFAULT_TOURNEY_WEEKS, confMatches: DEFAULT_CONF_MATCHES, maxMatches: DEFAULT_MAX_MATCHES, ncaa: { ...DEFAULT_NCAA },
+  };
+  return side === 'men' ? { ...base, ...JSON.parse(JSON.stringify(MEN_SETTINGS)) } : base;
+}
+
+export function newSeason(year, teams, settings = defaultSettings(), prev = null) {
+  const season = {
+    year, teams, games: [], polls: {}, post: {}, phase: 'regular', nextId: 1,
+    settings: JSON.parse(JSON.stringify(settings)), overrides: { regChamps: {}, autoBids: {} }, carryPoll: null,
+  };
+  season.games = generateSchedule(season, undefined, prev);
+  pickConfHosts(season, prev);
+  return season;
+}
+
+export function newLeague({ side = 'women', name = SIDES[side === 'men' ? 'men' : 'women'].name, year = START_YEAR, teams = seedTeams(side), conferences = conferencesFor(side) } = {}) {
+  side = side === 'men' ? 'men' : 'women';
+  const season = newSeason(year, teams, defaultSettings(side));
+  season.polls[0] = generatePoll(season, 0);
+  const league = {
+    schema: SCHEMA_VERSION, name, currentYear: year,
+    conferences: JSON.parse(JSON.stringify(conferences)),
+    coaches: {}, nextCoachId: 1,
+    seasons: { [year]: season }, side, sport: 'hockey', logoSet: AAU_LOGO_SET, alignment: ALIGNMENT,
+  };
+  ensureIndependent(league);
+  for (const t of Object.values(teams)) { t.coachId = t.coach ? newCoach(league, t.coach) : null; delete t.coach; }
+  return league;
+}
+
+// ---------- coaches ----------
+// Coaches are people in the dynasty: league.coaches[id] = { id, name }, and
+// each season's team points at one with coachId. Hiring a coach who is at
+// another program leaves that program's job open.
+
+export function newCoach(league, name) {
+  name = String(name || '').trim();
+  if (!name) throw new Error('Give the coach a name.');
+  league.coaches ||= {};
+  league.nextCoachId ||= 1;
+  const id = `c${league.nextCoachId++}`;
+  league.coaches[id] = { id, name };
+  return id;
+}
+
+export const coachName = (league, id) => (id && league.coaches?.[id]?.name) || '';
+
+// The school a coach leads in a set of teams, if any.
+export function coachSchool(teams, id) {
+  return id ? Object.values(teams).find(t => t.coachId === id)?.school || null : null;
+}
+
+// Put coach `id` (or nobody, with null) in charge of `school`. Returns the
+// school the coach left, if any; that job is now open.
+export function hireCoach(teams, school, id) {
+  const from = coachSchool(teams, id);
+  if (from && from !== school) teams[from].coachId = null;
+  teams[school].coachId = id || null;
+  return from && from !== school ? from : null;
+}
+
+// Coaches not leading any team in `teams`.
+export function availableCoaches(league, teams) {
+  const busy = new Set(Object.values(teams).map(t => t.coachId).filter(Boolean));
+  return Object.values(league.coaches || {}).filter(c => !busy.has(c.id)).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export const currentSeason = league => league.seasons[league.currentYear];
+
+// ---------- results ----------
+
+export function applyResult(g, res, source = 'sim') {
+  g.homeLine = res.homeLine; g.awayLine = res.awayLine;
+  g.homeR = res.home.R; g.homeH = res.home.H; g.homeE = res.home.E;
+  g.awayR = res.away.R; g.awayH = res.away.H; g.awayE = res.away.E;
+  g.runRule = false;
+  // Shootout goals ({ home, away }) from the shared engine; never set in hockey.
+  if (res.pk) g.pk = { home: res.pk.home, away: res.pk.away }; else delete g.pk;
+  g.final = true; g.source = source;
+}
+
+export function clearResult(g) {
+  Object.assign(g, { final: false, homeLine: [], awayLine: [], homeR: null, homeH: null, homeE: null, awayR: null, awayH: null, awayE: null, source: null, runRule: false });
+  delete g.heEstimated; delete g.pk;
+}
+
+// Shots on goal and penalty minutes for hand-entered scores.
+export function estimateHE(season, g, homeLine, awayLine) {
+  const s = season.settings;
+  return estimateHitsErrors(season.teams[g.home], season.teams[g.away], g, homeLine, awayLine, {
+    seed: hashStr(`${season.year}|${g.id}|${homeLine.join(',')}|${awayLine.join(',')}`), volatility: s.volatility,
+  });
+}
+
+// Hand-entered games saved before hits and errors were estimated have 0 hits
+// and 0 errors for both teams. Fill those in. Returns how many were updated.
+export function backfillHitsErrors(season) {
+  let n = 0;
+  for (const g of season.games) {
+    if (!g.final || g.source !== 'manual' || !season.teams[g.home] || !season.teams[g.away]) continue;
+    if (g.homeH || g.awayH || g.homeE || g.awayE || (g.homeR + g.awayR) === 0) continue;
+    const e = estimateHE(season, g, g.homeLine, g.awayLine);
+    g.homeH = e.home.H; g.homeE = e.home.E; g.awayH = e.away.H; g.awayE = e.away.E; g.heEstimated = true;
+    n++;
+  }
+  return n;
+}
+
+export function simResult(season, g, seed) {
+  const s = season.settings;
+  return simulateGame(season.teams[g.home], season.teams[g.away], g, { seed, volatility: s.volatility });
+}
+
+// After any change: advance brackets and release polls that are due.
+export function afterChange(season) {
+  replayRatings(season);
+  progress(season);
+  releaseDuePolls(season, postWeeks(season).conf);
+}
+
+// Simulate unplayed games matching `filter`, in calendar order. Postseason
+// games appear as earlier rounds finish, so keep going until none are left.
+export function simGames(season, filter = () => true, { max = 2000, autoLock = false } = {}) {
+  let n = 0;
+  for (;;) {
+    afterChange(season);
+    if (autoLock && season.phase === 'selection') { lockField(season); afterChange(season); }
+    const next = season.games.filter(g => !isFinal(g) && filter(g)).sort((a, b) => a.week - b.week || a.order - b.order || a.id - b.id)[0];
+    if (!next || n >= max) break;
+    applyResult(next, simResult(season, next));
+    n++;
+  }
+  afterChange(season);
+  return n;
+}
+
+// ---------- editing ----------
+
+export function addGame(season, fields) {
+  const g = blankGame(season, { ...fields, order: DAY_ORDER[fields.day] ?? 4 });
+  season.games.push(g);
+  return g;
+}
+
+export function deleteGame(season, id) { season.games = season.games.filter(g => g.id !== id); }
+
+// Adds a team to a set of teams (a season's, or the offseason draft's).
+export function addTeam(league, teams, fields) {
+  fields = { ...fields, school: fields.school?.trim() };
+  if (!fields.school) throw new Error('Give the team a name.');
+  if (teams[fields.school]) throw new Error('There is already a team with that name.');
+  if (!league.conferences[fields.conference]) throw new Error('Pick a conference.');
+  const { coachId = null, coachName: newName = '' } = fields;
+  delete fields.coach;
+  teams[fields.school] = makeTeam({ ...fields, coachId: null });
+  delete teams[fields.school].coach;
+  if (coachId) hireCoach(teams, fields.school, coachId);
+  else if (newName.trim()) teams[fields.school].coachId = newCoach(league, newName);
+  return teams[fields.school];
+}
+
+// Removes the team and its unplayed games. Played games stay in the record.
+export function removeTeam(season, school) {
+  delete season.teams[school];
+  season.games = season.games.filter(g => isFinal(g) || (g.home !== school && g.away !== school));
+}
+
+export function renameTeam(league, season, from, to) {
+  to = to.trim();
+  if (!to || to === from) return;
+  if (season.teams[to]) throw new Error('There is already a team with that name.');
+  for (const s of Object.values(league.seasons)) {
+    if (!s.teams[from]) continue;
+    s.teams[to] = { ...s.teams[from], school: to };
+    delete s.teams[from];
+    const swap = x => (x === from ? to : x);
+    for (const g of s.games) { g.home = swap(g.home); g.away = swap(g.away); }
+    for (const p of Object.values(s.polls || {})) { for (const r of p.ranks) r.team = swap(r.team); for (const r of p.others || []) r.team = swap(r.team); }
+    const post = s.post || {};
+    for (const k of Object.keys(post.sigs || {})) if (post.sigs[k]) post.sigs[k] = post.sigs[k].split('|').map(swap).join('|');
+    for (const ev of allEvents(s)) {
+      ev.seeds = ev.seeds.map(swap); ev.champion = swap(ev.champion); if (ev.host) ev.host = swap(ev.host);
+      for (const n of ev.nodes) { n.winner = swap(n.winner); n.loser = swap(n.loser); }
+    }
+    if (post.field) for (const f of post.field) f.team = swap(f.team);
+    post.champion = swap(post.champion); post.runnerUp = swap(post.runnerUp);
+    for (const c of Object.keys(s.confHosts || {})) s.confHosts[c] = swap(s.confHosts[c]);
+  }
+}
+
+// Keep conferences (and each season's conference tournaments) in A–Z order,
+// so every list built from them reads alphabetically.
+export function sortConferences(league) {
+  const az = (a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' });
+  const sortObj = o => Object.fromEntries(Object.entries(o).sort(([a], [b]) => az(a, b)));
+  if (league.conferences) league.conferences = sortObj(league.conferences);
+  for (const s of Object.values(league.seasons || {})) if (s.post?.confT) s.post.confT = sortObj(s.post.confT);
+  return league;
+}
+
+export function addConference(league, name, { abbr, color = '#555555' } = {}) {
+  name = name.trim();
+  if (!name) throw new Error('Give the conference a name.');
+  if (league.conferences[name]?.retired) { delete league.conferences[name].retired; league.conferences[name].color = color; return; }
+  if (league.conferences[name]) throw new Error('That conference already exists.');
+  league.conferences[name] = { abbr: abbr || name.split(/\s+/).map(w => w[0]).join('').toUpperCase().slice(0, 4), color };
+  sortConferences(league);
+}
+
+export function renameConference(league, from, to) {
+  to = to.trim();
+  if (from === INDEPENDENT || to === INDEPENDENT) throw new Error('Independent is reserved for teams without a conference.');
+  if (!to || to === from) return;
+  if (league.conferences[to]) throw new Error('That conference already exists.');
+  league.conferences[to] = league.conferences[from];
+  delete league.conferences[from];
+  for (const s of Object.values(league.seasons)) {
+    for (const t of Object.values(s.teams)) if (t.conference === from) t.conference = to;
+    if (s.settings.confTourney?.[from] != null) { s.settings.confTourney[to] = s.settings.confTourney[from]; delete s.settings.confTourney[from]; }
+    for (const k of ['regChamps', 'autoBids']) if (s.overrides?.[k]?.[from]) { s.overrides[k][to] = s.overrides[k][from]; delete s.overrides[k][from]; }
+    if (s.post?.confT?.[from]) { s.post.confT[to] = { ...s.post.confT[from], conf: to }; delete s.post.confT[from]; }
+    for (const f of s.post?.field || []) if (f.conf === from) f.conf = to;
+  }
+  sortConferences(league);
+}
+
+export function deleteConference(league, season, name) {
+  if (name === INDEPENDENT) throw new Error('Independent can\'t be deleted; it holds teams without a conference.');
+  if (Object.values(season.teams).some(t => t.conference === name)) throw new Error('Move its teams to another conference first.');
+  const usedEarlier = Object.values(league.seasons).some(s => Object.values(s.teams).some(t => t.conference === name));
+  if (!usedEarlier) delete league.conferences[name];
+  else league.conferences[name].retired = true;
+}
+
+// ---------- the commissioner's conference alignment ----------
+// The starting conferences in data.js. Bump ALIGNMENT when they change: a
+// saved dynasty whose first season hasn't started picks up the new alignment
+// when it loads (teams move, missing teams join, empty old conferences go,
+// and the schedule is rebuilt). Settings can apply it by hand too.
+export const ALIGNMENT = 'aau-hockey-2030-1';
+const DROPPED = []; // schools to take out when the alignment changes
+export function canApplyAlignment(league) {
+  const s = league.seasons?.[league.currentYear];
+  return !!s && !league.draft && !s.games.some(g => g.type === 'regular' && isFinal(g));
+}
+export function applyAlignment(league) {
+  if (!canApplyAlignment(league)) throw new Error('Games have already been played this season. Move teams in the offseason instead.');
+  const s = league.seasons[league.currentYear];
+  const side = sideOf(league), CONFS = conferencesFor(side);
+  for (const [c, info] of Object.entries(CONFS)) {
+    const have = league.conferences[c];
+    if (have) { delete have.retired; Object.assign(have, { ...info, abbr: info.abbr }); } else league.conferences[c] = JSON.parse(JSON.stringify(info));
+  }
+  for (const school of DROPPED) if (s.teams[school]) removeTeam(s, school);
+  for (const [school, seed] of Object.entries(seedTeams(side))) {
+    if (s.teams[school]) { s.teams[school].conference = seed.conference; continue; }
+    const t = { ...seed };
+    t.coachId = t.coach ? newCoach(league, t.coach) : null; delete t.coach;
+    s.teams[school] = t;
+  }
+  for (const c of Object.keys(league.conferences)) {
+    if (c === INDEPENDENT || CONFS[c]) continue;
+    if (!Object.values(s.teams).some(t => t.conference === c)) deleteConference(league, s, c);
+  }
+  sortConferences(league);
+  rebuildSchedule(s, league.seasons[s.year - 1] || null);
+  league.alignment = ALIGNMENT;
+}
+
+// Rebuild the regular-season schedule (only before any regular-season game is played).
+export function rebuildSchedule(season, prev = null) {
+  if (season.games.some(g => g.type === 'regular' && isFinal(g))) throw new Error('Games have already been played this season.');
+  season.games = season.games.filter(g => g.type !== 'regular');
+  season.games.push(...generateSchedule(season, hashStr(`${season.year}-${Date.now()}`), prev));
+  season.polls = {};
+  season.polls[0] = generatePoll(season, 0);
+}
+
+// ---------- next season ----------
+
+// Offseason development. Each team gets an allotment of rating points for
+// next season: more after a winning season, more again for beating what its
+// ratings predicted and for a deep postseason run, fewer for a team already
+// near the top (graduation pulls everyone toward 70), plus some luck, plus
+// the head coach's prestige (see coachBonus). The commissioner places the
+// points on OFF, MID and DEF in the Offseason.
+const DEV_LUCK = { none: 0, small: 3, normal: 5, big: 8 };
+const FINISH_BONUS = { 'National champion': 4.5, 'National runner-up': 3.5, 'Frozen Four': 3, 'Quarterfinals': 2.5, 'Round of 16': 2, 'National Tournament': 1.5 };
+export const RATING_KEYS = ['off', 'pit', 'def'];
+export function devPoints(team, season, r, level = 'normal', avgO = 70) {
+  if (level === 'none') return 0;
+  const rec = season ? records(season)[team.school] : null;
+  const o = 0.4 * team.off + 0.3 * team.pit + 0.3 * team.def;
+  const played = rec ? rec.w + rec.l + (rec.t || 0) : 0;
+  const wp = played ? (rec.w + rec.t / 2) / played : 0.5;
+  // What the ratings said this team should have won, against an average schedule.
+  const expected = 1 / (1 + Math.exp(-0.122 * (o - avgO)));
+  const finish = season ? FINISH_BONUS[postseasonFinish(season, team.school)] || 0 : 0;
+  const pts = (played ? (wp - 0.5) * 8 + (wp - expected) * 18 : 0) + finish * 1.5 - 0.3 * (o - 70) + normal(r) * (DEV_LUCK[level] ?? DEV_LUCK.normal);
+  return clamp(Math.round(pts), -15, 15);
+}
+// ---------- coaches and development ----------
+// Every coach's career in the dynasty: record, seasons, NCAA and Frozen Four trips, titles.
+export function coachResumes(league) {
+  const out = {};
+  for (const y of Object.keys(league.seasons).map(Number).sort((a, b) => a - b)) {
+    const se = league.seasons[y], recs = records(se), ws = new Set(wsTeams(se)), field = new Set((se.post?.field || []).map(f => f.team));
+    for (const t of Object.values(se.teams)) {
+      if (!t.coachId || !recs[t.school]) continue;
+      const c = (out[t.coachId] ||= { w: 0, l: 0, t: 0, seasons: 0, ncaa: 0, mcws: 0, titles: 0 });
+      c.w += recs[t.school].w; c.l += recs[t.school].l; c.t += recs[t.school].t; c.seasons++;
+      if (field.has(t.school)) c.ncaa++;
+      if (ws.has(t.school)) c.mcws++;
+      if (se.post?.champion === t.school) c.titles++;
+    }
+  }
+  return out;
+}
+// Prestige, 0-100 (50 = an average head coach): winning percentage, how often
+// his teams make the NCAA tournament, Frozen Four trips and national titles. A short
+// career counts for less, so a coach with one great season isn't an "Elite"
+// name yet. A coach with no seasons in the dynasty is a little below average.
+export function coachPrestige(res) {
+  if (!res || !res.seasons) return 45;
+  const g = res.w + res.l + (res.t || 0), pct = g ? (res.w + (res.t || 0) / 2) / g : 0.5;
+  const raw = (pct - 0.5) * 60 + (res.ncaa / res.seasons - 0.35) * 20 + Math.min(16, res.mcws * 4) + Math.min(21, res.titles * 7);
+  return clamp(Math.round(50 + raw * (res.seasons / (res.seasons + 2))), 0, 100);
+}
+export const prestigeLabel = p => (p >= 80 ? 'Elite' : p >= 66 ? 'Proven' : p >= 54 ? 'Solid' : p >= 44 ? 'Average' : 'Struggling');
+// Rating points a coach adds to (or takes from) a team's offseason allotment.
+// A new hire counts double what a coach who stays does: a big-name coach
+// arriving at a struggling program makes a jump more likely.
+export const COACH_NEW = 1.5, COACH_STAY = 0.75;
+export function coachBonus(prestige, isNew) {
+  return Math.round(((prestige - 50) / 10) * (isNew ? COACH_NEW : COACH_STAY));
+}
+
+// Program prestige, 0-100 (50 = an average program): how good a school has
+// been lately. Each past season counts its winning percentage, NCAA bid,
+// Frozen Four trip, national title and final poll rank, and older seasons fade
+// (each year back counts 75% as much). A school with little history leans
+// on its current talent, so a powerhouse starts out looking like one.
+export const PRESTIGE_FADE = 0.75;
+export function programPrestiges(league, teams) {
+  const years = Object.keys(league.seasons).map(Number).sort((a, b) => b - a);
+  const out = {};
+  const per = years.map(y => {
+    const se = league.seasons[y];
+    if (se.phase !== 'complete') return null;
+    const recs = records(se), ws = new Set(wsTeams(se)), field = new Set((se.post?.field || []).map(f => f.team));
+    const fin = Object.fromEntries((se.polls?.final?.ranks || []).map((x, i) => [x.team, i + 1]));
+    const size = se.polls?.final?.ranks?.length || 25;
+    return { recs, ws, field, fin, size, champ: se.post?.champion };
+  }).filter(Boolean);
+  for (const t of Object.values(teams)) {
+    let sum = 0, wsum = 0, w = 1;
+    for (const x of per) {
+      const r = x.recs[t.school];
+      if (r && r.w + r.l + (r.t || 0)) {
+        const wp = (r.w + (r.t || 0) / 2) / (r.w + r.l + (r.t || 0)), rk = x.fin[t.school];
+        const v = (wp - 0.5) * 80 + (x.field.has(t.school) ? 8 : -3) + (x.ws.has(t.school) ? 10 : 0) + (x.champ === t.school ? 12 : 0) + (rk ? 10 * (x.size + 1 - rk) / x.size : 0);
+        sum += v * w; wsum += w;
+      }
+      w *= PRESTIGE_FADE;
+    }
+    // Talent stands in for missing history (worth about 1.5 seasons).
+    const prior = (0.4 * t.off + 0.4 * t.pit + 0.2 * t.def - 70) * 1.6;
+    out[t.school] = clamp(Math.round(50 + (sum + prior * 1.5) / (wsum + 1.5)), 0, 100);
+  }
+  return out;
+}
+export const programLabel = p => (p >= 80 ? 'Blue blood' : p >= 65 ? 'Power' : p >= 52 ? 'Established' : p >= 40 ? 'Middle' : 'Building');
+// Big programs recruit: a prestige 90 program earns about +3 points a year,
+// a 20 about -2, which keeps true powers near the top while regression and
+// luck still bring most hot teams back.
+export const programBonus = p => Math.round((p - 50) / 13);
+
+// A new coach's first year is a roll: most hires land near what his prestige
+// promises, some take off, and some flop. A bigger program magnifies it
+// (more to work with, more pressure). `fit` is the multiplier, fixed for a
+// given school, coach and year so it doesn't change when the page redraws.
+export function hireFit(year, school, coachId) {
+  const r = rng(hashStr(`fit|${year}|${school}|${coachId}`));
+  return clamp(1 + normal(r) * 0.65, -0.6, 1.9);
+}
+export const fitLabel = f => (f >= 1.4 ? 'Great fit' : f >= 0.8 ? 'Good fit' : f >= 0.3 ? 'Slow start' : 'Rough fit');
+// Recompute every draft team's coach points from its coach right now (call
+// after any coaching change). `dev.coach0` is the coach who finished last season.
+export function syncCoachBonus(league, teams = league.draft?.teams) {
+  if (!teams) return;
+  const cur = currentSeason(league), off = cur?.settings?.development === 'none';
+  const year = league.draft?.year ?? (cur?.year ?? 0) + 1;
+  const res = coachResumes(league), prog = programPrestiges(league, teams);
+  for (const t of Object.values(teams)) {
+    if (!t.dev) continue;
+    if (!('coach0' in t.dev)) t.dev.coach0 = t.coachId || null;
+    const isNew = (t.coachId || null) !== t.dev.coach0;
+    const pr = t.coachId ? coachPrestige(res[t.coachId]) : null;
+    t.dev.prestige = prog[t.school];
+    t.dev.pb = off ? 0 : programBonus(prog[t.school]);
+    t.dev.fit = isNew && t.coachId ? hireFit(year, t.school, t.coachId) : null;
+    // A new hire: his prestige x 1.5, times how the fit turns out, a little
+    // bigger at a big program. An empty job costs a point (nobody recruiting).
+    const amp = 0.8 + prog[t.school] / 250;
+    t.dev.cb = off ? 0 : !t.coachId ? -1 : isNew ? Math.round(coachBonus(pr, true) * t.dev.fit * amp) : coachBonus(pr, false);
+    t.dev.coachNew = isNew;
+  }
+}
+// A team's whole allotment: results and luck, its program, and its coach.
+export const devTotal = t => (t.dev ? t.dev.pts + (t.dev.pb || 0) + (t.dev.cb || 0) : 0);
+
+// Spread a team's points one at a time across the three ratings.
+export function spreadPoints(t, r) {
+  const d = t.dev, total = devTotal(t);
+  for (const k of RATING_KEYS) t[k] = d.start[k];
+  for (let i = 0; i < Math.abs(total); i++) {
+    const k = RATING_KEYS[Math.floor(r() * 3)];
+    t[k] = clamp(t[k] + Math.sign(total), 40, 99);
+  }
+  t.base = { off: t.off, pit: t.pit, def: t.def };
+}
+// Points the commissioner still has to place (negative = over budget).
+// Put a team's ratings back where they started the offseason.
+export function clearPoints(t) {
+  if (!t.dev) return;
+  for (const k of RATING_KEYS) t[k] = t.dev.start[k];
+  t.base = { off: t.off, pit: t.pit, def: t.def };
+}
+// Place only the points still unplaced, keeping the commissioner's changes.
+export function placeRemaining(t, r) {
+  let left = pointsLeft(t), guard = 0;
+  while (left !== 0 && guard++ < 200) {
+    const k = RATING_KEYS[Math.floor(r() * 3)];
+    const v = clamp(t[k] + Math.sign(left), 40, 99);
+    if (v !== t[k]) { t[k] = v; left -= Math.sign(left); }
+  }
+  t.base = { off: t.off, pit: t.pit, def: t.def };
+}
+export function pointsLeft(t) {
+  if (!t.dev) return 0;
+  return devTotal(t) - RATING_KEYS.reduce((n, k) => n + (t[k] - t.dev.start[k]), 0);
+}
+// Points start unplaced (the commissioner places them in the offseason);
+// `spread: true` places them at random, for seasons started without one.
+export function developTeams(teams, year, level = 'normal', season = null, { spread = false, league = null } = {}) {
+  const r = rng(hashStr(`dev-${year}`));
+  const out = JSON.parse(JSON.stringify(teams));
+  const list = Object.values(out), avgO = list.reduce((n, t) => n + 0.4 * t.off + 0.4 * t.pit + 0.2 * t.def, 0) / (list.length || 1);
+  for (const t of list) {
+    t.dev = { pts: devPoints(t, season, r, level, avgO), start: { off: t.off, pit: t.pit, def: t.def }, coach0: t.coachId || null };
+  }
+  if (league && level !== 'none') syncCoachBonus(league, out);
+  if (spread) for (const t of list) spreadPoints(t, r);
+  return out;
+}
+
+// ---------- offseason ----------
+// Once the champion is crowned, next season's teams live in a draft the
+// commissioner can change: move teams between conferences, add or remove
+// teams, change coaches and ratings. Starting the season builds the schedule.
+
+export function beginOffseason(league) {
+  const prev = currentSeason(league);
+  if (prev.phase !== 'complete') throw new Error('Finish the season first.');
+  if (!league.draft || league.draft.year !== prev.year + 1) {
+    league.draft = { year: prev.year + 1, teams: developTeams(prev.teams, prev.year + 1, prev.settings.development, prev, { league }), removed: {}, moves: [] };
+  }
+  return league.draft;
+}
+
+export function draftRemoveTeam(league, school) {
+  const d = league.draft;
+  d.removed[school] = d.teams[school];
+  delete d.teams[school];
+}
+
+export function draftRestoreTeam(league, school) {
+  const d = league.draft;
+  if (!d.removed[school]) return;
+  if (!league.conferences[d.removed[school].conference] || league.conferences[d.removed[school].conference].retired) {
+    d.removed[school].conference = Object.keys(league.conferences).find(c => !league.conferences[c].retired);
+  }
+  d.teams[school] = d.removed[school];
+  delete d.removed[school];
+}
+
+// Problems that would make next season's schedule lopsided.
+export function draftWarnings(league) {
+  const out = [];
+  const count = {};
+  for (const t of Object.values(league.draft.teams)) count[t.conference] = (count[t.conference] || 0) + 1;
+  for (const [c, n] of Object.entries(count)) {
+    if (c === INDEPENDENT) continue;
+    if (n === 1) out.push(`${c} has only one team, so it has no conference games. It still gets an automatic bid.`);
+    const st = currentSeason(league).settings;
+    const weeks = confWeeksMax(st.regWeeks ?? DEFAULT_REG_WEEKS), maxRounds = weeks * PER_WEEK;
+    const T = confTarget(n, st.confMatches ?? DEFAULT_CONF_MATCHES);
+    if (n > 1) {
+      const names = Array.from({ length: n }, (_, i) => `t${i}`);
+      const k = confSeriesCounts(confRounds(names, maxRounds, rng(n), st.confMatches ?? DEFAULT_CONF_MATCHES), names).t0;
+      if (k < T) out.push(`${c} has ${n} teams. Conference play fits ${weeks} weeks (${maxRounds} rounds), so each team plays ${k} conference games instead of ${T}. Every member plays the same number.`);
+      else if (T > n - 1 && T < 2 * (n - 1)) out.push(`${c} has ${n} teams, so each team plays ${T} conference games: everyone once and some twice (which ones changes every season).`);
+    }
+  }
+  { const need = fieldNeed(currentSeason(league).settings), have = Object.keys(league.draft.teams).length;
+    if (have < need) out.push(`The ${need}-team National Tournament field needs at least ${need} teams (there are ${have}). Add teams or make the field smaller in Settings.`); }
+  const open = Object.values(league.draft.teams).filter(t => !t.coachId).map(t => t.school).sort();
+  if (open.length) out.push(`No head coach yet: ${open.join(', ')}.`);
+  return out;
+}
+
+// Teams the National Tournament format needs (the field size from the
+// season's settings: 32 for the women's default, 6 for the men's).
+const fieldNeed = settings => fieldSize({ ...DEFAULT_NCAA, ...(settings?.ncaa || {}) });
+
+export function startNextSeason(league) {
+  const prev = currentSeason(league);
+  const year = prev.year + 1;
+  const teams = league.draft?.year === year ? league.draft.teams : developTeams(prev.teams, year, prev.settings.development, prev, { spread: true, league });
+  const need = fieldNeed(prev.settings), have = Object.keys(teams).length;
+  if (have < need) throw new Error(`The ${need}-team National Tournament field needs at least ${need} teams (there are ${have}). Add teams or make the field smaller in Settings.`);
+  const moves = league.draft?.moves || [];
+  delete league.draft;
+  for (const t of Object.values(teams)) delete t.dev;
+  const season = newSeason(year, teams, prev.settings, prev);
+  season.coachMoves = moves;
+  season.carryPoll = prev.polls.final || null;
+  season.polls[0] = generatePoll(season, 0);
+  league.seasons[year] = season;
+  league.currentYear = year;
+  return season;
+}
+
+export function seasonWeeks(season) {
+  const weeks = [...new Set(season.games.map(g => g.week))].sort((a, b) => a - b);
+  return weeks;
+}
+
+// Name of a week in `season`: regular-season weeks are "Week n"; the weeks
+// after are named for their stage.
+export function weekName(w, season) {
+  if (season) {
+    const W = postWeeks(season);
+    const names = { [W.conf]: 'Conf. Tournaments', [W.regional]: W.regional2 ? 'First Round' : 'Quarterfinals', [W.mcws]: season.settings?.mcwsName || 'Frozen Four' };
+    if (W.regional2) names[W.regional2] = 'Quarterfinals';
+    if (W.super) names[W.super] = 'Super Regionals';
+    if (names[w]) return names[w];
+  }
+  return `Week ${w}`;
+}
+export const isRegularWeek = (w, season) => w <= regWeeksOf(season);
+
+// Bring an older save up to date: no pitching staffs (v2), coaches as
+// people and preseason ratings for in-season movement (v3), season length,
+// midweek format and NCAA tournament format as settings (v4).
+// Every league has an Independent "conference" for teams without one.
+export function ensureIndependent(league) {
+  league.conferences ||= {};
+  league.conferences[INDEPENDENT] ||= { abbr: 'Ind.', color: '#5f6b7a' };
+  delete league.conferences[INDEPENDENT].retired;
+}
+
+export function migrateLeague(league) {
+  const women = sideOf(league) === 'women';
+  league.sport ||= 'hockey'; // lets AAU History detect ice hockey
+  ensureIndependent(league);
+  sortConferences(league);
+  // Home fields for teams saved before they existed.
+  for (const teams of [...Object.values(league.seasons || {}).map(se => se.teams), ...(league.draft ? [league.draft.teams] : [])]) for (const t of Object.values(teams || {})) fillSite(t);
+  // Regionals and super regionals are named after the host's city.
+  for (const se of Object.values(league.seasons || {})) citySiteNames(se);
+  // Conferences named like the commissioner's (made by hand in an older save)
+  // get their drawn logo and colors, unless they already have a logo.
+  const alias = { 'Coastal Athletic Conference': 'Coastal Atlantic Conference', UAA: 'University Athletic Association', 'Pac-10': 'Pacific-10 Conference' };
+  for (const c of Object.keys(league.conferences || {})) {
+    const own = conferencesFor(sideOf(league));
+    const info = own[c] || own[alias[c]];
+    if (!info) continue;
+    const have = league.conferences[c];
+    if (have && info.logo && !have.logo) Object.assign(have, { logo: info.logo, altColor: info.altColor, color: info.color, abbr: have.abbr || info.abbr });
+  }
+  // The AAU Dynasty's logos, for teams that don't have their own yet.
+  if (league.logoSet !== AAU_LOGO_SET) {
+    const sets = [...Object.values(league.seasons || {}).map(se => se.teams), ...(league.draft ? [league.draft.teams] : [])];
+    for (const tset of sets) for (const t of Object.values(tset || {})) if (!t.logoOverride && DEFAULT_LOGOS[t.school]) t.logoOverride = DEFAULT_LOGOS[t.school];
+    league.logoSet = AAU_LOGO_SET; league.migrated = true;
+  }
+  // A dynasty that hasn't played its first game takes the current alignment.
+  if (league.alignment !== ALIGNMENT && league.seasons && canApplyAlignment(league) && league.currentYear === START_YEAR) {
+    try { applyAlignment(league); league.migrated = true; } catch (e) { console.warn(e); }
+  }
+  const v = league.schema || 1;
+  if (v >= SCHEMA_VERSION) return league;
+  if (v < 4) {
+    for (const se of Object.values(league.seasons)) {
+      // Seasons already scheduled keep their length; new schedules use the settings.
+      se.regWeeks ??= Math.max(1, ...se.games.filter(g => g.type === 'regular').map(g => g.week)) || 14;
+      se.settings.regWeeks ??= DEFAULT_REG_WEEKS;
+      se.settings.midweek ??= 'mixed';
+      se.settings.ncaa ??= { ...DEFAULT_NCAA };
+      if (se.post?.regionals && !se.post.cfg) se.post.cfg = { ...DEFAULT_NCAA };
+      (se.post?.regionals || []).forEach((ev, i) => { ev.path ??= i; });
+    }
+  }
+  const allTeams = () => [...Object.keys(league.seasons).map(Number).sort((a, b) => a - b).map(y => league.seasons[y].teams), ...(league.draft ? [league.draft.teams] : [])];
+  for (const se of Object.values(league.seasons)) {
+    for (const g of se.games) { for (const k of ['pitching', 'wp', 'lp', 'sv', 'homeStarter', 'awayStarter', 'homeSlot', 'awaySlot']) delete g[k]; }
+    se.settings.form ??= 'normal';
+    se.settings.confFormat ??= {};
+  }
+  if (v < 3) {
+    league.coaches ||= {};
+    league.nextCoachId ||= 1;
+    const ids = new Map(); // "school|name" -> id, so a coach stays one person across seasons
+    for (const teams of allTeams()) {
+      for (const t of Object.values(teams)) {
+        delete t.staff;
+        const name = (t.coach ?? COACHES[t.school] ?? '').trim();
+        if (name && !t.coachId) {
+          const k = `${t.school}|${name}`;
+          if (!ids.has(k)) ids.set(k, newCoach(league, name));
+          t.coachId = ids.get(k);
+        }
+        t.coachId ??= null;
+        delete t.coach;
+        ensureBase(t);
+      }
+    }
+  }
+  league.schema = SCHEMA_VERSION;
+  return league;
+}

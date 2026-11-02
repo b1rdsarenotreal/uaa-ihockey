@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Don't tell image hosts which site is showing their images; many logo
+       sites block images embedded on other websites based on that. -->
+  <meta name="referrer" content="no-referrer">
+  <title>AAU Hockey</title>
+  <meta name="description" content="A commissioner-style college ice hockey dynasty for the AAU schools, women's and men's, starting in 2030: box scores by period, overtime and ties, weekend series, polls, conference tournaments and the national tournament through the Frozen Four.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css?v=20261102104644">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='44' fill='%23e9f2f8'/><path d='M34 18 L46 66 Q48 74 58 74 L80 74' stroke='%230b3c5d' stroke-width='8' fill='none' stroke-linecap='round'/><ellipse cx='36' cy='78' rx='13' ry='5' fill='%23111'/></svg>">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="14.5" fill="#e9f2f8"/><path d="M11 6 L15 21 Q15.8 23.5 18.5 23.5 L25 23.5" fill="none" stroke="#0b3c5d" stroke-width="2.4" stroke-linecap="round"/><ellipse cx="11.5" cy="25" rx="4.2" ry="1.7" fill="#111"/></svg> <span id="league-name">AAU Hockey</span></div>
+    <div class="side-switch" id="side-switch" role="group" aria-label="Women's or men's hockey"></div>
+    <div class="season-picker" id="season-picker"></div>
+    <nav id="nav" class="nav"></nav>
+  </header>
+  <main id="app" class="app"><p class="muted">Loading…</p></main>
+  <dialog id="modal"></dialog>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script type="module" src="js/app.js?v=20261102104644"></script>
+</body>
+</html>

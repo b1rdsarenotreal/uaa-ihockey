@@ -2,35 +2,39 @@
 // to early March (week 1 starts the first Monday in October), games on
 // Friday and Saturday, with a holiday break in late December.
 //
-// Every pair of teams meets: conference opponents in weekend series,
-// everyone else once (`settings.nonConf`):
-// - men's (`confSeries: 'split'`, `nonConf: 'single'`): a home-and-home
-//   series with each conference opponent (Friday at one rink, Saturday at
-//   the other) and one game against every team in the other conference;
-// - women's (`confSeries: 'twice'`, `nonConf: 'series'`): two two-game
-//   series with each conference opponent, one at each rink, and a two-game
-//   series at one rink against every other team.
+// Every game is part of a two-game weekend series at one rink (the owner's
+// rules, Nov. 2026; both sides, `confSeries: 'auto'`, `nonConf: 'fill'`):
+// - conference: in a conference of `confTwiceMax` (7) teams or fewer, two
+//   series against each opponent, one at each rink (4 games); in a bigger
+//   one, one series against each, the host swapping every year;
+// - non-conference: series against teams from other conferences, a
+//   different one each time and nearby teams of a similar level first,
+//   until a team has about `maxMatches` (34) games.
+// Older settings still work: `confSeries` 'split' (a home-and-home, Friday
+// at one rink and Saturday at the other) or 'twice', `nonConf` 'single'
+// (one game against everyone) or 'series' (a series against everyone).
 // Each weekend a team plays a series or up to two single games; teams
 // spread their weekends over the season (non-conference early, conference
 // later), so the season fills `regWeeks` (22).
 // When `prev` (last season) is given, series hosts swap from last year.
 
-import { isIndependent } from './standings.js?v=20261103130650';
-import { cityPoint, miles } from './geo.js?v=20261103130650';
-import { rng, shuffle, hashStr } from './util.js?v=20261103130650';
+import { isIndependent } from './standings.js?v=20261103150524';
+import { cityPoint, miles } from './geo.js?v=20261103150524';
+import { rng, shuffle, hashStr } from './util.js?v=20261103150524';
 
 export const DEFAULT_REG_WEEKS = 22;
 export const DEFAULT_TOURNEY_WEEKS = 0; // kept for older code paths
 export const PER_WEEK = 2; // games a weekend (Friday and Saturday)
 export const DEFAULT_CONF_MATCHES = 40; // no cap: everyone plays the whole conference schedule
-export const DEFAULT_MAX_MATCHES = 40;
+export const DEFAULT_MAX_MATCHES = 34; // games a team plays, non-conference series filling up to it
+export const TWICE_MAX = 7; // conferences this size or smaller play everyone twice
 export const MAX_CONF_WEEKS = 22;
 
 // Conference games against each opponent: a home-and-home pair ('split'),
 // or two series of two ('twice').
 export const DOUBLE_ROUND_ROBIN_MAX = 99;
-export const confGamesPerOpponent = mode => (mode === 'twice' ? 4 : 2);
-export const confTarget = (n, max = DEFAULT_CONF_MATCHES, mode = 'split') => (n < 2 ? 0 : Math.min((n - 1) * confGamesPerOpponent(mode), max));
+export const confGamesPerOpponent = (mode, n = 0, twiceMax = TWICE_MAX) => (mode === 'twice' || (mode === 'auto' && n <= twiceMax) ? 4 : 2);
+export const confTarget = (n, max = DEFAULT_CONF_MATCHES, mode = 'auto', twiceMax = TWICE_MAX) => (n < 2 ? 0 : Math.min((n - 1) * confGamesPerOpponent(mode, n, twiceMax), max));
 
 // Kept for older code paths that read these.
 export const MIDWEEK = {}; export const MIDWEEK_FREQ = {};
@@ -293,7 +297,7 @@ export function generateSchedule(season, seed = hashStr(String(season.year)), pr
   const games = [];
   const REG = Math.max(8, st.regWeeks ?? DEFAULT_REG_WEEKS);
   const hosted = new Map(); // "a|b" -> who hosted last year (single host)
-  for (const g of prev?.games || []) if (g.type === 'regular' && g.day === 'Fri') hosted.set(key(g.home, g.away), g.home);
+  for (const g of prev?.games || []) if (g.type === 'regular' && (g.slot === 0 || (g.slot == null && g.day === 'Fri'))) hosted.set(key(g.home, g.away), g.home);
   const lastHost = (a, b) => hosted.get(key(a, b));
   const add = (week, day, home, away, extra = {}) => {
     games.push(blankGame(season, { week, day, order: DAY_ORDER[day], home, away, ...extra }));
@@ -301,15 +305,70 @@ export function generateSchedule(season, seed = hashStr(String(season.year)), pr
   };
 
   // Every meeting: { a, b, kind: 'split' | 'host' | 'single', host, conf }.
-  const meetings = [];
+  const twiceMax = st.confTwiceMax ?? TWICE_MAX;
+  const size = {};
+  for (const n of names) if (!isIndependent(teams[n].conference)) size[teams[n].conference] = (size[teams[n].conference] || 0) + 1;
+  const modeOf = conf => (confMode === 'auto' ? (size[conf] <= twiceMax ? 'twice' : 'once') : confMode);
+  const meetings = [], onceEdges = [];
   for (let i = 0; i < names.length; i++) for (let j = i + 1; j < names.length; j++) {
     let [a, b] = shuffle([names[i], names[j]], r);
     if (lastHost(a, b) === a) [a, b] = [b, a]; // last year's host travels first
     if (rival(teams, a, b)) {
-      if (confMode === 'twice') { meetings.push({ a, b, kind: 'host', host: a, conf: true }, { a, b, kind: 'host', host: b, conf: true }); }
+      const mode = modeOf(teams[a].conference);
+      if (mode === 'twice') meetings.push({ a, b, kind: 'host', host: a, conf: true }, { a, b, kind: 'host', host: b, conf: true });
+      else if (mode === 'once') { const m = { a, b, kind: 'host', host: lastHost(a, b) ? a : null, conf: true }; meetings.push(m); onceEdges.push(m); }
       else meetings.push({ a, b, kind: 'split', conf: true });
     } else if (ncMode === 'series') meetings.push({ a, b, kind: 'host', host: null, conf: false });
-    else meetings.push({ a, b, kind: 'single', conf: false });
+    else if (ncMode === 'single') meetings.push({ a, b, kind: 'single', conf: false });
+  }
+  // One series a year against each conference opponent: the host swaps from
+  // last year; pairs that didn't meet last year are set so every member
+  // hosts about half its series.
+  const confHome = Object.fromEntries(names.map(n => [n, 0]));
+  for (const m of onceEdges) if (m.host) confHome[m.host]++;
+  for (const m of shuffle(onceEdges.filter(m => !m.host), r)) { m.host = confHome[m.a] <= confHome[m.b] ? m.a : m.b; confHome[m.host]++; }
+  // Non-conference series up to the games cap: each team (busiest first)
+  // takes a different opponent from another conference, nearby and of a
+  // similar level, until it has about `maxMatches` games.
+  if (ncMode === 'fill') {
+    const cap = st.maxMatches ?? DEFAULT_MAX_MATCHES;
+    const want = Object.fromEntries(names.map(n => [n, cap]));
+    for (const m of meetings) { const g = m.kind === 'single' ? 1 : 2; want[m.a] -= g; want[m.b] -= g; }
+    for (const n of names) want[n] = Math.max(0, Math.floor(want[n] / 2));
+    const pts = Object.fromEntries(names.map(n => [n, cityPoint(teams[n].city)]));
+    const dist = (a, b) => (pts[a] && pts[b] ? miles(pts[a], pts[b]) : 900);
+    const lvl = t => (teams[t].off ?? 65) * 0.4 + (teams[t].pit ?? 65) * 0.3 + (teams[t].def ?? 65) * 0.3;
+    const met = new Map();
+    for (let pass = 0; pass < 2; pass++) for (let progress = true; progress;) {
+      progress = false;
+      for (const a of shuffle(names, r).sort((x, y) => want[y] - want[x])) {
+        if (want[a] <= 0) continue;
+        let best = null, bs = Infinity;
+        for (const b of names) {
+          if (b === a || want[b] <= 0 || rival(teams, a, b)) continue;
+          const times = met.get(key(a, b)) || 0;
+          if (times && pass === 0) continue; // a repeat only when nobody new is left
+          const c = dist(a, b) + Math.abs(lvl(a) - lvl(b)) * 30 + r() * 700 - want[b] * 60 + times * 4000;
+          if (c < bs) { bs = c; best = b; }
+        }
+        if (!best) continue;
+        let [x, y] = shuffle([a, best], r);
+        if (lastHost(x, y) === x) [x, y] = [y, x];
+        meetings.push({ a: x, b: y, kind: 'host', host: null, conf: false, swap: !!lastHost(x, y) });
+        met.set(key(a, best), (met.get(key(a, best)) || 0) + 1);
+        want[a]--; want[best]--; progress = true;
+      }
+    }
+  }
+  // Non-conference hosts: whoever has hosted fewer series so far (counting
+  // conference series), last year's visitor when even.
+  if (ncMode === 'fill') {
+    const hosts = Object.fromEntries(names.map(n => [n, 0]));
+    for (const m of meetings) if (m.kind === 'host' && m.host) hosts[m.host]++;
+    for (const m of shuffle(meetings.filter(m => m.kind === 'host' && !m.host), r)) {
+      m.host = hosts[m.a] < hosts[m.b] ? m.a : hosts[m.b] < hosts[m.a] ? m.b : m.swap ? m.a : r() < 0.5 ? m.a : m.b;
+      hosts[m.host]++;
+    }
   }
   // Weekend units each team still owes: a series is one, a single game half.
   const load = Object.fromEntries(names.map(n => [n, 0]));

@@ -1,15 +1,15 @@
 // League (dynasty) lifecycle: creating the league, saving results,
 // simulating, adding teams and conferences, and rolling into new seasons.
 
-import { DEFAULT_LOGOS, AAU_LOGO_SET } from './logo-import.js?v=20261103130650';
-import { START_YEAR, CONFERENCES, CONF_LOGO_LINKS, COACHES, SIDES, sideOf, conferencesFor, seedTeams, makeTeam, fillSite } from './data.js?v=20261103130650';
-import { generateSchedule, blankGame, DAY_ORDER, DEFAULT_REG_WEEKS, DEFAULT_TOURNEY_WEEKS, DEFAULT_CONF_MATCHES, DEFAULT_MAX_MATCHES, PER_WEEK, confWeeksFor, confWeeksMax, confRounds, confSeriesCounts, confTarget } from './schedule.js?v=20261103130650';
-import { simulateGame, estimateHitsErrors } from './sim.js?v=20261103130650';
-import { generatePoll, releaseDuePolls } from './polls.js?v=20261103130650';
-import { replayRatings, ensureBase } from './ratings.js?v=20261103130650';
-import { progress, lockField, postWeeks, allEvents, regWeeksOf, fieldSize, DEFAULT_NCAA, OLD_DEFAULT_NCAA, pickConfHosts, postseasonFinish, fixEarlyWeekDates, citySiteNames, wsTeams } from './postseason.js?v=20261103130650';
-import { isFinal, records, INDEPENDENT } from './standings.js?v=20261103130650';
-import { rng, normal, clamp, hashStr } from './util.js?v=20261103130650';
+import { DEFAULT_LOGOS, AAU_LOGO_SET } from './logo-import.js?v=20261103150524';
+import { START_YEAR, CONFERENCES, CONF_LOGO_LINKS, COACHES, SIDES, sideOf, conferencesFor, seedTeams, makeTeam, fillSite } from './data.js?v=20261103150524';
+import { generateSchedule, blankGame, DAY_ORDER, DEFAULT_REG_WEEKS, DEFAULT_TOURNEY_WEEKS, DEFAULT_CONF_MATCHES, DEFAULT_MAX_MATCHES, TWICE_MAX, PER_WEEK, confWeeksFor, confWeeksMax, confRounds, confSeriesCounts, confTarget } from './schedule.js?v=20261103150524';
+import { simulateGame, estimateHitsErrors } from './sim.js?v=20261103150524';
+import { generatePoll, releaseDuePolls } from './polls.js?v=20261103150524';
+import { replayRatings, ensureBase } from './ratings.js?v=20261103150524';
+import { progress, lockField, postWeeks, allEvents, regWeeksOf, fieldSize, DEFAULT_NCAA, OLD_DEFAULT_NCAA, pickConfHosts, postseasonFinish, fixEarlyWeekDates, citySiteNames, wsTeams } from './postseason.js?v=20261103150524';
+import { isFinal, records, INDEPENDENT } from './standings.js?v=20261103150524';
+import { rng, normal, clamp, hashStr } from './util.js?v=20261103150524';
 
 export const SCHEMA_VERSION = 4;
 
@@ -18,11 +18,11 @@ export const SCHEMA_VERSION = 4;
 // Women's: two series with each conference opponent and a series against
 // everyone else; Frozen Four Friday and Sunday. Both: 8-team national
 // tournaments, the quarterfinals at the higher seed's rink.
-const MEN_SETTINGS = { confSeries: 'split', nonConf: 'single', finalDays: ['Thu', 'Sat'], mcwsVenue: 'Xcel Energy Center', mcwsCity: 'St. Paul, Minn.' };
+const MEN_SETTINGS = { finalDays: ['Thu', 'Sat'], mcwsVenue: 'Xcel Energy Center', mcwsCity: 'St. Paul, Minn.' };
 export function defaultSettings(side = 'women') {
   const base = {
     volatility: 1, confTourney: {}, confFormat: {}, mcwsName: 'Frozen Four', mcwsVenue: 'Ridder Arena', mcwsCity: 'Minneapolis, Minn.', aqMin: 4, development: 'normal', form: 'normal',
-    periods: 3, confDays: 'fs', confWeekend: {}, confSeries: 'twice', nonConf: 'series', finalDays: ['Fri', 'Sun'],
+    periods: 3, confDays: 'fs', confWeekend: {}, confSeries: 'auto', nonConf: 'fill', confTwiceMax: TWICE_MAX, finalDays: ['Fri', 'Sun'],
     regWeeks: DEFAULT_REG_WEEKS, tourneyWeeks: DEFAULT_TOURNEY_WEEKS, confMatches: DEFAULT_CONF_MATCHES, maxMatches: DEFAULT_MAX_MATCHES, ncaa: { ...DEFAULT_NCAA },
   };
   return side === 'men' ? { ...base, ...JSON.parse(JSON.stringify(MEN_SETTINGS)) } : base;
@@ -46,7 +46,7 @@ export function newLeague({ side = 'women', name = SIDES[side === 'men' ? 'men' 
     schema: SCHEMA_VERSION, name, currentYear: year,
     conferences: JSON.parse(JSON.stringify(conferences)),
     coaches: {}, nextCoachId: 1,
-    seasons: { [year]: season }, side, sport: 'hockey', logoSet: AAU_LOGO_SET, alignment: ALIGNMENT,
+    seasons: { [year]: season }, side, sport: 'hockey', scheduleVersion: 2, logoSet: AAU_LOGO_SET, alignment: ALIGNMENT,
   };
   ensureIndependent(league);
   for (const t of Object.values(teams)) { t.coachId = t.coach ? newCoach(league, t.coach) : null; delete t.coach; }
@@ -517,15 +517,6 @@ export function draftWarnings(league) {
   for (const [c, n] of Object.entries(count)) {
     if (c === INDEPENDENT) continue;
     if (n === 1) out.push(`${c} has only one team, so it has no conference games. It still gets an automatic bid.`);
-    const st = currentSeason(league).settings;
-    const weeks = confWeeksMax(st.regWeeks ?? DEFAULT_REG_WEEKS), maxRounds = weeks * PER_WEEK;
-    const T = confTarget(n, st.confMatches ?? DEFAULT_CONF_MATCHES);
-    if (n > 1) {
-      const names = Array.from({ length: n }, (_, i) => `t${i}`);
-      const k = confSeriesCounts(confRounds(names, maxRounds, rng(n), st.confMatches ?? DEFAULT_CONF_MATCHES), names).t0;
-      if (k < T) out.push(`${c} has ${n} teams. Conference play fits ${weeks} weeks (${maxRounds} rounds), so each team plays ${k} conference games instead of ${T}. Every member plays the same number.`);
-      else if (T > n - 1 && T < 2 * (n - 1)) out.push(`${c} has ${n} teams, so each team plays ${T} conference games: everyone once and some twice (which ones changes every season).`);
-    }
   }
   { const need = fieldNeed(currentSeason(league).settings), have = Object.keys(league.draft.teams).length;
     if (have < need) out.push(`The ${need}-team National Tournament field needs at least ${need} teams (there are ${have}). Add teams or make the field smaller in Settings.`); }
@@ -589,6 +580,17 @@ export function migrateLeague(league) {
   const women = sideOf(league) === 'women';
   league.sport ||= 'hockey'; // lets AAU History detect ice hockey
   for (const se of Object.values(league.seasons || {})) if (fixEarlyWeekDates(se)) league.migrated = true;
+  // Every game in a two-game series (the owner's rules, Nov. 2026): the
+  // current season switches, with a new schedule if no game has been played
+  // (otherwise from next season on); played seasons keep theirs.
+  if ((league.scheduleVersion || 0) < 2) {
+    const se = league.seasons?.[league.currentYear];
+    if (se) {
+      Object.assign(se.settings, { confSeries: 'auto', nonConf: 'fill', confTwiceMax: TWICE_MAX, maxMatches: DEFAULT_MAX_MATCHES });
+      if (!se.games.some(g => g.type === 'regular' && isFinal(g)) && !league.draft) rebuildSchedule(se, league.seasons[se.year - 1] || null);
+    }
+    league.scheduleVersion = 2; league.migrated = true;
+  }
   ensureIndependent(league);
   // Conferences still on a drawn logo the owner has since replaced with a
   // link (CONF_LOGO_LINKS) take the link; logos set by hand stay.

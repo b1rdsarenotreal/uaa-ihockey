@@ -28,11 +28,14 @@ unless the owner asks.
 - Every league has `league.sport = 'hockey'` so AAU History can detect it.
 - Schedule (`js/schedule.js`): week 1 starts the first Monday in October;
   Friday and Saturday games; no games on weekends whose Saturday is Dec 14
-  to Jan 1 (`breakWeek`). Every pair meets: `settings.confSeries` 'split'
-  (men's: Fri at one rink, Sat at the other) or 'twice' (women's: a series
-  at each rink), `settings.nonConf` 'single' (men's: once) or 'series'
-  (women's: one two-game series). Weekends are filled so each team spreads
-  its games over `regWeeks` (22), non-conference first.
+  to Jan 1 (`breakWeek`). Every game is in a two-game series at one rink
+  (the owner's rules, Nov. 2026; `confSeries: 'auto'`, `nonConf: 'fill'`):
+  a conference of `confTwiceMax` (7) or fewer plays everyone twice, a series
+  at each rink; a bigger one everyone once, the host swapping every year;
+  non-conference series against a different team each time fill to
+  `maxMatches` (34) games. The older 'split'/'twice' and 'single'/'series'
+  settings still work. Weekends are spread over `regWeeks` (22),
+  non-conference first.
 - Postseason stages keep the MCS internal names: `regionals`, `supers`,
   `mcws` = the Frozen Four. Default 8 teams in four regions of two (the
   quarterfinal at the higher seed's rink); Frozen Four days from

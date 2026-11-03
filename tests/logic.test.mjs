@@ -69,31 +69,53 @@ check('games: three periods; regular-season overtime then a tie; postseason sudd
   assert.ok(e.home.H >= 3 && e.home.E >= 2);
 });
 
-for (const side of ['women', 'men']) check(`${side}'s schedule: weekend series, everyone met`, () => {
+// Every game in a two-game series at one rink; conferences of 7 or fewer
+// play everyone twice (a series at each rink), bigger ones once (the host
+// swapping every year); non-conference series fill to about 34 games.
+const seriesOf = g => { const m = {}; for (const x of g) (m[`${x.week}|${[x.home, x.away].sort().join('|')}`] ||= []).push(x); return Object.values(m); };
+for (const side of ['women', 'men']) check(`${side}'s schedule: two-game series, conference and non-conference`, () => {
   const L = newLeague({ side }), s = currentSeason(L), g = reg(s);
   assert.equal(dateOf(s.year, 1, 'Mon').toISOString().slice(0, 10), '2030-10-07', 'the first Monday in October');
   assert.ok(g.every(x => ['Fri', 'Sat'].includes(x.day)), 'Friday and Saturday');
   for (const x of g) assert.ok(!breakWeek(s.year, x.week), 'no games over the holiday break');
   const seen = new Set();
   for (const x of g) for (const t of [x.home, x.away]) { const k = `${t}|${x.week}|${x.day}`; assert.ok(!seen.has(k), k); seen.add(k); }
+  for (const ser of seriesOf(g)) { assert.equal(ser.length, 2, 'a two-game series'); assert.equal(ser[0].home, ser[1].home, 'at one rink'); assert.equal(ser[0].confGame, ser[1].confGame); }
+  const size = {};
+  for (const t of Object.values(s.teams)) size[t.conference] = (size[t.conference] || 0) + 1;
   const meets = {};
   for (const x of g) (meets[[x.home, x.away].sort().join('|')] ||= []).push(x);
   const names = Object.keys(s.teams);
   for (let i = 0; i < names.length; i++) for (let j = i + 1; j < names.length; j++) {
     const [a, b] = [names[i], names[j]], list = meets[[a, b].sort().join('|')] || [];
-    const conf = s.teams[a].conference === s.teams[b].conference;
-    const homes = list.map(x => x.home);
-    if (side === 'men') {
-      if (conf) { assert.equal(list.length, 2, `${a}-${b}`); assert.equal(list[0].week, list[1].week, 'one weekend'); assert.notEqual(homes[0], homes[1], 'home and home'); assert.ok(list.every(x => x.confGame)); }
-      else { assert.equal(list.length, 1, `${a}-${b} once`); assert.ok(!list[0].confGame); }
-    } else if (conf) {
-      assert.equal(list.length, 4, `${a}-${b}`);
-      assert.equal(homes.filter(h => h === a).length, 2, 'a series at each rink');
-    } else { assert.equal(list.length, 2, `${a}-${b}: one series`); assert.equal(list[0].week, list[1].week); assert.equal(homes[0], homes[1]); }
+    if (s.teams[a].conference !== s.teams[b].conference) { assert.ok(list.length <= 2 || list.length === 4, `${a}-${b}`); assert.ok(list.every(x => !x.confGame)); continue; }
+    assert.ok(list.every(x => x.confGame));
+    if (size[s.teams[a].conference] <= 7) { assert.equal(list.length, 4, `${a}-${b}`); assert.equal(list.filter(x => x.home === a).length, 2, 'a series at each rink'); }
+    else assert.equal(list.length, 2, `${a}-${b}: one series`);
   }
   const totals = Object.values(count(g));
+  assert.ok(Math.min(...totals) >= 32 && Math.max(...totals) <= 34, `${Math.min(...totals)}–${Math.max(...totals)} games`);
   console.log(`  ${side}: ${Math.min(...totals)}–${Math.max(...totals)} games per team over ${s.regWeeks} weeks`);
   assert.ok(s.regWeeks <= DEFAULT_REG_WEEKS + 2);
+});
+
+check('a conference of 8 or more: one series each, the host swaps every year', () => {
+  const L = newLeague({ side: 'men' }), s = currentSeason(L);
+  const hostOf = se => { const m = new Map(); for (const x of reg(se)) if (x.confGame && x.slot === 0) m.set([x.home, x.away].sort().join('|'), x.home); return m; };
+  const h1 = hostOf(s);
+  simGames(s, undefined, { autoLock: true, max: 9000 }); beginOffseason(L); startNextSeason(L);
+  const h2 = hostOf(currentSeason(L));
+  assert.ok(h1.size > 50);
+  for (const [k, v] of h1) assert.notEqual(h2.get(k), v, k);
+});
+
+check('older saves switch to two-game series', () => {
+  const L = newLeague({ side: 'men' }), s = currentSeason(L);
+  Object.assign(s.settings, { confSeries: 'split', nonConf: 'single', maxMatches: 40 }); rebuildSchedule(s, null); delete L.scheduleVersion;
+  assert.ok(reg(s).some(x => x.home !== reg(s).find(y => y.week === x.week && [y.home, y.away].sort().join() === [x.home, x.away].sort().join() && y !== x)?.home), 'home-and-home before');
+  migrateLeague(L);
+  assert.equal(s.settings.nonConf, 'fill');
+  for (const ser of seriesOf(reg(s))) assert.equal(ser[0].home, ser[1].home);
 });
 
 check('automatic bids for conferences of 4 or more; 8-team format; week names', () => {
@@ -208,7 +230,7 @@ check('offseason and the next season', () => {
   const s2 = startNextSeason(league);
   assert.equal(s2.year, 2031);
   const conf = count(reg(s2).filter(g => g.confGame && s2.teams[g.home].conference === 'West Coast'));
-  assert.deepEqual(Object.values(conf), [4, 4, 4], 'a home-and-home with each conference opponent');
+  assert.deepEqual(Object.values(conf), [8, 8, 8], 'a 3-team conference: a series at each rink with both opponents');
   rebuildSchedule(s2, prev);
   assert.ok(reg(s2).length > 150);
 });

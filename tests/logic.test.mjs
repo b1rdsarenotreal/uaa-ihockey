@@ -37,7 +37,7 @@ check("the AAU hockey programs: women's in the commissioner's conferences, men's
   assert.equal(M.Wisconsin.stadium, 'Kohl Center'); assert.equal(W.Wisconsin.stadium, 'LaBahn Arena');
   assert.ok(ovr(W.Wisconsin) >= 92, 'the 2026 women\'s champion leads');
   assert.equal(new Set(Object.values(MEN_COACHES)).size, Object.keys(MEN_COACHES).length);
-  for (const c of Object.keys(CONFERENCES)) if (CONFERENCES[c].logo) assert.ok(existsSync(new URL(`../${CONFERENCES[c].logo}`, import.meta.url)), `${c} logo`);
+  for (const c of Object.keys(CONFERENCES)) if (CONFERENCES[c].logo) assert.ok((/^https:\/\//.test(CONFERENCES[c].logo) || existsSync(new URL(`../${CONFERENCES[c].logo}`, import.meta.url))), `${c} logo`);
   assert.equal(newLeague({ side: 'men' }).sport, 'hockey');
 });
 

@@ -15,9 +15,9 @@
 // later), so the season fills `regWeeks` (22).
 // When `prev` (last season) is given, series hosts swap from last year.
 
-import { isIndependent } from './standings.js?v=20261102164658';
-import { cityPoint, miles } from './geo.js?v=20261102164658';
-import { rng, shuffle, hashStr } from './util.js?v=20261102164658';
+import { isIndependent } from './standings.js?v=20261102230026';
+import { cityPoint, miles } from './geo.js?v=20261102230026';
+import { rng, shuffle, hashStr } from './util.js?v=20261102230026';
 
 export const DEFAULT_REG_WEEKS = 22;
 export const DEFAULT_TOURNEY_WEEKS = 0; // kept for older code paths

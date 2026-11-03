@@ -65,19 +65,44 @@ svg('metro.svg', 'Metro Conference', f'''
 {text('METRO', 60, 102, 23, WHITE, 0.4)}
 <rect x="5" y="5" width="110" height="110" rx="20" fill="none" stroke="{WHITE}" stroke-opacity=".9" stroke-width="2.5"/>''')
 
-# Southwest Conference: cornflower blue, navy and sunset orange, a rising sun.
-CORN, NAVY, SUN = '#719AE8', '#1D2D50', '#F28C38'
-rays = ''.join(
-    f'<polygon fill="{CORN}" points="{60 + 22 * math.cos(a - .09):.1f},{64 - 22 * math.sin(a - .09):.1f} '
-    f'{60 + 40 * math.cos(a):.1f},{64 - 40 * math.sin(a):.1f} {60 + 22 * math.cos(a + .09):.1f},{64 - 22 * math.sin(a + .09):.1f}"/>'
-    for a in [math.pi * i / 8 for i in range(1, 8)])
+# Southwest Conference: a throwback to the old SWC (1914–1996): heavy slab
+# SWC under a lone star, with retro sunset stripes, in cornflower blue, navy
+# and sunset orange on cream. Lettering: Alfa Slab One (SIL Open Font
+# License, tools/fonts/).
+SLAB = TTFont(os.path.join(os.path.dirname(__file__), 'fonts', 'AlfaSlabOne-Regular.woff'))
+
+
+def slab(s, cx, baseline, size, fill, spacing=0.0):
+    """Outlined Alfa Slab One text centered on cx, sitting on baseline."""
+    gs, cmap, upm = SLAB.getGlyphSet(), SLAB.getBestCmap(), SLAB['head'].unitsPerEm
+    k = size / upm
+    names = [cmap[ord(c)] for c in s]
+    adv = [gs[n].width * k for n in names]
+    x, parts = cx - (sum(adv) + spacing * (len(s) - 1)) / 2, []
+    for n, a in zip(names, adv):
+        pen = SVGPathPen(gs)
+        gs[n].draw(TransformPen(pen, (k, 0, 0, -k, x, baseline)))
+        parts.append(pen.getCommands())
+        x += a + spacing
+    return f'<path fill="{fill}" d="{" ".join(parts)}"/>'
+
+
+def star(cx, cy, r_out, fill):
+    pts = []
+    for i in range(10):
+        a, r = -math.pi / 2 + i * math.pi / 5, r_out if i % 2 == 0 else r_out * 0.382
+        pts.append(f'{cx + r * math.cos(a):.2f},{cy + r * math.sin(a):.2f}')
+    return f'<polygon fill="{fill}" points="{" ".join(pts)}"/>'
+
+
+CORN, NAVY, SUN, CREAM = '#719AE8', '#1D2D50', '#F28C38', '#FFF6E9'
 svg('swc.svg', 'Southwest Conference', f'''
-<defs><clipPath id="s"><circle cx="60" cy="60" r="46"/></clipPath></defs>
-<circle cx="60" cy="60" r="57" fill="{CORN}"/>
-<circle cx="60" cy="60" r="46" fill="{NAVY}"/>
-<g clip-path="url(#s)">{rays}<circle cx="60" cy="64" r="18" fill="{SUN}"/><rect x="0" y="64" width="120" height="60" fill="{NAVY}"/><rect x="0" y="64" width="120" height="3" fill="{SUN}"/></g>
-{text('SWC', 60, 94, 26, '#FFFFFF', 1)}
-<circle cx="60" cy="60" r="57" fill="none" stroke="#FFFFFF" stroke-opacity=".85" stroke-width="2"/>''')
+<defs><clipPath id="r"><rect x="4" y="4" width="112" height="112" rx="16"/></clipPath></defs>
+<rect x="4" y="4" width="112" height="112" rx="16" fill="{CREAM}"/>
+<g clip-path="url(#r)"><rect x="0" y="74" width="120" height="9" fill="{SUN}"/><rect x="0" y="86" width="120" height="9" fill="{CORN}"/><rect x="0" y="98" width="120" height="22" fill="{NAVY}"/></g>
+{star(60, 22, 11, SUN)}
+{slab('SWC', 60, 66, 36, NAVY, 0.5)}
+<rect x="4" y="4" width="112" height="112" rx="16" fill="none" stroke="{NAVY}" stroke-width="3"/>''')
 
 # UC Athletic Association: Pacific teal and California gold, sun over the ocean.
 TEAL, GOLD = '#0F6E7A', '#F2C14E'

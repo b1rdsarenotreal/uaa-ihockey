@@ -1,3 +1,5 @@
+import { CONF_LOGO_LINKS } from './data.js?v=20261103130650';
+
 // Every AAU member school (73), for the "AAU school" pick on the Add team
 // form: abbreviation, mascot, colors, city and the conference it plays in
 // in the owner's AAU Dynasty alignment. Taken from AAU Basketball, which has
@@ -76,4 +78,18 @@ export const AAU_SCHOOLS = {
   "WashU": { abbr: "WUSTL", mascot: "Bears", color: '#A51417', altColor: '#007360', city: "St. Louis, Mo.", conference: "University Athletic Association" },
   "Wisconsin": { abbr: "WIS", mascot: "Badgers", color: '#C5050C', altColor: '#FFFFFF', city: "Madison, Wis.", conference: "Big Ten" },
   "Yale": { abbr: "YALE", mascot: "Bulldogs", color: '#00356B', altColor: '#FFFFFF', city: "New Haven, Conn.", conference: "Ivy League" },
+};
+
+// The owner's eight AAU conferences, for the "AAU conference" pick on the
+// Add conference form (a conference that doesn't sponsor this sport yet can
+// be added later): abbreviation, colors and logo, as in the AAU Dynasty.
+export const AAU_CONFERENCES = {
+  'Big Ten': { abbr: 'B1G', color: '#0088CE', altColor: '#0B2A4A', logo: CONF_LOGO_LINKS.bigten },
+  'Coastal Atlantic Conference': { abbr: 'CAC', color: '#3A4A5C', altColor: '#5CC6C2', logo: 'img/conf/cac.svg' },
+  'Ivy League': { abbr: 'IVY', color: '#026937', altColor: '#C9B37E', logo: CONF_LOGO_LINKS.ivy },
+  'Metro Conference': { abbr: 'METRO', color: '#E03A3E', altColor: '#23262D', logo: CONF_LOGO_LINKS.metro },
+  'Pacific-10 Conference': { abbr: 'P10', color: '#092346', altColor: '#D6A84B', logo: CONF_LOGO_LINKS.pac10 },
+  'Southwest Conference': { abbr: 'SWC', color: '#719AE8', altColor: '#F28C38', logo: 'img/conf/swc.svg' },
+  'UC Athletic Association': { abbr: 'UCAA', color: '#0F6E7A', altColor: '#F2C14E', logo: 'img/conf/ucaa.svg' },
+  'University Athletic Association': { abbr: 'UAA', color: '#003087', altColor: '#F2B33D', logo: CONF_LOGO_LINKS.uaa },
 };

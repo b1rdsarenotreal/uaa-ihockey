@@ -1,14 +1,14 @@
 // Season pages: home, schedule, standings, rankings and postseason.
 
-import { ctx, S, app, modal, $, $$, esc, toast, changed, persist, cache, team, teamOptions, teamNames, confLogo, confHref, confColor, confInfo, gameCard, compactCard, placeholderCard, bindGameCards, openGame, resultText, periodNote, DAY_NAMES, readableOn, teamInfo, logoImg, teamHref } from './ui.js?v=20261102104644';
-import { isFinal, winnerOf, resultFor, records, rpi, confStandings, conferences, regSeasonChamp, regSeasonChamps, TIEBREAKERS, quadrants, quadCuts, isIndependent, INDEPENDENT } from './standings.js?v=20261102104644';
-import { latestPoll, generatePoll, pollRankMap, pollSizeOf, VOTER_PANEL, voterStyle, votersOf, addRandomVoter, removeVoter } from './polls.js?v=20261102104644';
-import { ovr } from './sim.js?v=20261102104644';
-import { simGames, addGame, weekName } from './league.js?v=20261102104644';
-import { CONF_FORMATS, confFormatName, confKind } from './postseason.js?v=20261102104644';
-import { COMMITTEE_TIERS, COMMITTEE_SHORT, committeeSheet, compareTeams, mcwsVenue, postWeeks, regWeeksOf, ncaaConfig, hasSupers, noRegionals, fieldSize, wsTeams, formatSummary, shownSeed, postseasonBonus, defaultConfTourneySize, confTourneySeeds, reseedConfTourney, proposeField, lockField, pods, nodeTeams, nodeNeeded, runnerUp, committeeOrder, autoBids, refLabel, setConfFormat, ensureLayout, confHost, setConfHost, mcwsHistory, selectionBoard, setAtLarge, confirmField, unconfirmField, bracketology, BRACKETOLOGY_FROM_WEEK } from './postseason.js?v=20261102104644';
-import { fmtPct, hashStr } from './util.js?v=20261102104644';
-import { DAY_ORDER, CONF_WEEKENDS, applyConfWeekend } from './schedule.js?v=20261102104644';
+import { ctx, S, app, modal, $, $$, esc, toast, changed, persist, cache, team, teamOptions, teamNames, confLogo, confHref, confColor, confInfo, gameCard, compactCard, placeholderCard, bindGameCards, openGame, resultText, periodNote, DAY_NAMES, readableOn, teamInfo, logoImg, teamHref } from './ui.js?v=20261102164658';
+import { isFinal, winnerOf, resultFor, records, rpi, confStandings, conferences, regSeasonChamp, regSeasonChamps, TIEBREAKERS, quadrants, quadCuts, isIndependent, INDEPENDENT } from './standings.js?v=20261102164658';
+import { latestPoll, generatePoll, pollRankMap, pollSizeOf, VOTER_PANEL, voterStyle, votersOf, addRandomVoter, removeVoter } from './polls.js?v=20261102164658';
+import { ovr } from './sim.js?v=20261102164658';
+import { simGames, addGame, weekName } from './league.js?v=20261102164658';
+import { CONF_FORMATS, confFormatName, confKind } from './postseason.js?v=20261102164658';
+import { COMMITTEE_TIERS, COMMITTEE_SHORT, committeeSheet, compareTeams, mcwsVenue, postWeeks, regWeeksOf, ncaaConfig, hasSupers, noRegionals, fieldSize, wsTeams, formatSummary, shownSeed, postseasonBonus, defaultConfTourneySize, confTourneySeeds, reseedConfTourney, proposeField, lockField, pods, nodeTeams, nodeNeeded, runnerUp, committeeOrder, autoBids, refLabel, setConfFormat, ensureLayout, confHost, setConfHost, mcwsHistory, selectionBoard, setAtLarge, confirmField, unconfirmField, bracketology, BRACKETOLOGY_FROM_WEEK } from './postseason.js?v=20261102164658';
+import { fmtPct, hashStr } from './util.js?v=20261102164658';
+import { DAY_ORDER, CONF_WEEKENDS, applyConfWeekend } from './schedule.js?v=20261102164658';
 
 // " at Lynah Rink, Ithaca, N.Y." for a host school with a home rink.
 const atField = (s, school) => { const t = s.teams[school]; const f = [t?.stadium, t?.city].filter(Boolean).join(', '); return f ? ` at ${esc(f)}` : ''; };
@@ -170,6 +170,11 @@ export function renderSchedule() {
       ${confs.map(c => fchip(`conf:${c}`, `${confLogo(c, 16)}<span>${esc(confInfo(c).abbr || c)}</span>`, ` title="Games with a ${esc(c)} team"`)).join('')}
     </div>`;
   const firstOpenDay = unplayed[0]?.day;
+  // A sim button on each day heading with games left to play. It also plays
+  // any earlier day of the week that's still open, so results stay in order.
+  const dayOpen = d => unplayed.some(g => g.day === d);
+  const throughDay = d => { const i = days.indexOf(d); return g => g.week === ui.week && days.indexOf(g.day) <= i; };
+  const dayBtn = d => (dayOpen(d) ? `<button type="button" class="btn sm day-sim" data-simday="${esc(d)}" title="Simulate ${days.slice(0, days.indexOf(d)).some(dayOpen) ? 'every open game through' : 'the games on'} ${esc(DAY_NAMES[d] || d)}">🎲 Sim ${esc(DAY_NAMES[d] || d)}</button>` : '');
   const isDone = w => s.games.filter(g => g.week === w).every(isFinal);
   const finals = s.games.filter(isFinal).length;
   const regLeft = s.games.filter(g => g.type === 'regular' && !isFinal(g)).length;
@@ -185,7 +190,7 @@ export function renderSchedule() {
     </div>
     ${filterBar}
     ${tourneyStandings(s, games)}
-    ${shownDays.map(d => { const all = games.filter(g => g.day === d).length, n = shown.filter(g => g.day === d).length; return `<h3 class="day-head">${DAY_NAMES[d] || esc(d)} <span class="muted small">${filtering ? `${n} of ${all} games` : `${n} game${n === 1 ? '' : 's'}`}</span></h3>
+    ${shownDays.map(d => { const all = games.filter(g => g.day === d).length, n = shown.filter(g => g.day === d).length; return `<h3 class="day-head">${DAY_NAMES[d] || esc(d)} <span class="muted small">${filtering ? `${n} of ${all} games` : `${n} game${n === 1 ? '' : 's'}`}</span>${dayBtn(d)}</h3>
       <div class="games">${shown.filter(g => g.day === d).map(gameCard).join('')}</div>`; }).join('') || `<div class="empty">${filtering && games.length ? `No ${esc(filterName)} games in ${esc(weekName(ui.week, s))}. <button class="btn sm" id="sf-clear">Show all games</button>` : 'No games this week.'}</div>`}
     <p class="small muted" style="margin-top:16px">Click a game to enter its score or simulate it. Percentages are each favorite's chance to win (a tie counts half), from the teams' OFF, MID and DEF ratings and home field.</p>`;
   $$('[data-week]').forEach(b => (b.onclick = () => { ui.week = Number(b.dataset.week); renderSchedule(); }));
@@ -193,6 +198,7 @@ export function renderSchedule() {
   const tsd = $('details.tstand'); if (tsd) tsd.ontoggle = () => { ui.tstandOpen = tsd.open; };
   if ($('#sf-clear')) $('#sf-clear').onclick = () => { ui.schedFilter = 'all'; renderSchedule(); };
   bindGameCards();
+  $$('[data-simday]').forEach(btn => (btn.onclick = () => { const d = btn.dataset.simday; simAndReport(throughDay(d), `${days.slice(0, days.indexOf(d)).some(dayOpen) ? 'through' : 'on'} ${DAY_NAMES[d] || d}`); }));
   if ($('#w-day')) $('#w-day').onclick = () => simAndReport(g => g.week === ui.week && g.day === firstOpenDay, `on ${DAY_NAMES[firstOpenDay] || firstOpenDay}`);
   if ($('#w-sim')) $('#w-sim').onclick = () => simAndReport(g => g.week === ui.week, `in ${weekName(ui.week, s)}`);
   if ($('#w-rest')) $('#w-rest').onclick = () => {

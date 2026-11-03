@@ -226,6 +226,7 @@ input[type=color] { width: 54px; height: 34px; padding: 2px; border: 1px solid v
 .grid.wide { grid-template-columns: repeat(auto-fill, minmax(520px, 1fr)); }
 @media (max-width: 640px) { .grid.wide { grid-template-columns: 1fr; } }
 .day-head { margin: 18px 0 10px; display: flex; gap: 10px; align-items: baseline; }
+.day-head .day-sim { align-self: center; margin-left: 4px; font-size: 13px; }
 .games { grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); }
 .game .line.sb { grid-template-columns: minmax(0, 1fr) repeat(var(--q, 7), 15px) 24px 20px 18px; gap: 3px; }
 .game .line.sb.head .q { font-size: 10px; opacity: .7; }

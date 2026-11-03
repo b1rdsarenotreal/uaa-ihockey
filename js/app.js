@@ -1,12 +1,12 @@
 // App shell: loading the dynasty, the top bar, and page routing.
 
-import { loadLeague, saveLeague, currentSide, setSide } from './store.js?v=20261103150524';
-import { loadLogoTable } from './logos.js?v=20261103150524';
-import { newLeague, afterChange, migrateLeague } from './league.js?v=20261103150524';
-import { ctx, app, cache, persist, esc, flushSave } from './ui.js?v=20261103150524';
-import { renderHome, renderSchedule, renderStandings, renderRankings, renderPostseason, resetSeasonUi } from './views-season.js?v=20261103150524';
-import { renderRecords } from './views-records.js?v=20261103150524';
-import { renderTeams, renderTeamPage, renderConferences, renderConferencePage, renderHistory, renderSettings, renderOffseason, renderCoaches, renderCoachPage } from './views-league.js?v=20261103150524';
+import { loadLeague, saveLeague, currentSide, setSide } from './store.js?v=20261103153144';
+import { loadLogoTable } from './logos.js?v=20261103153144';
+import { newLeague, afterChange, migrateLeague } from './league.js?v=20261103153144';
+import { ctx, app, cache, persist, esc, flushSave, seasonLabel } from './ui.js?v=20261103153144';
+import { renderHome, renderSchedule, renderStandings, renderRankings, renderPostseason, resetSeasonUi } from './views-season.js?v=20261103153144';
+import { renderRecords } from './views-records.js?v=20261103153144';
+import { renderTeams, renderTeamPage, renderConferences, renderConferencePage, renderHistory, renderSettings, renderOffseason, renderCoaches, renderCoachPage } from './views-league.js?v=20261103153144';
 
 const VIEWS = { home: 'Home', schedule: 'Schedule', standings: 'Standings', rankings: 'Rankings', postseason: 'Postseason', offseason: 'Offseason', teams: 'Teams', coaches: 'Coaches', conferences: 'Conferences', history: 'History', records: 'Records', settings: 'Settings' };
 const SUBVIEWS = { team: 'teams', conference: 'conferences', coach: 'coaches' };
@@ -40,7 +40,7 @@ function renderChrome() {
   document.getElementById('nav').innerHTML = Object.entries(VIEWS).filter(([k]) => k !== 'offseason' || offOpen || v === 'offseason').map(([k, label]) => `<a href="#/${k}" class="${k === v || SUBVIEWS[v] === k ? 'active' : ''}">${label}</a>`).join('');
   const years = Object.keys(L.seasons).map(Number).sort((a, b) => b - a);
   const picker = document.getElementById('season-picker');
-  picker.innerHTML = `<select aria-label="Season">${years.map(y => `<option value="${y}" ${y === L.viewYear ? 'selected' : ''}>${y}${y === L.currentYear ? '' : ' (past)'}</option>`).join('')}</select>`;
+  picker.innerHTML = `<select aria-label="Season">${years.map(y => `<option value="${y}" ${y === L.viewYear ? 'selected' : ''}>${seasonLabel(y)}${y === L.currentYear ? '' : ' (past)'}</option>`).join('')}</select>`;
   picker.querySelector('select').onchange = e => { L.viewYear = Number(e.target.value); resetSeasonUi(); persist(); render(); };
 }
 

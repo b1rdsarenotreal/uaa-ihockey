@@ -1,20 +1,20 @@
 // League pages: teams, team profiles, conferences, history, settings.
 
-import { readAauLogos, applyAauLogos, DEFAULT_LOGOS } from './logo-import.js?v=20261103150524';
-import { AAU_SCHOOLS, AAU_CONFERENCES } from './aau-schools.js?v=20261103150524';
-import { ctx, S, app, modal, $, $$, esc, toast, changed, persist, flushSave, cache, team, teamInfo, logoImg, teamOptions, teamHref, confLogo, confHref, confInfo, confColor, imageFileToDataUrl, readableOn, openGame, resultText, periodNote, gameDateOf } from './ui.js?v=20261103150524';
-import { isFinal, winnerOf, resultFor, records, rpi, confStandings, regSeasonChamp, regSeasonChamps, isIndependent } from './standings.js?v=20261103150524';
-import { ovr } from './sim.js?v=20261103150524';
-import { latestPoll, pollRankMap, pollSizeOf, POLL_SIZES, DEFAULT_POLL_SIZE } from './polls.js?v=20261103150524';
-import { addTeam, removeTeam, renameTeam, addConference, renameConference, deleteConference, rebuildSchedule, startNextSeason, weekName, newLeague, beginOffseason, draftRemoveTeam, draftRestoreTeam, draftWarnings, coachName, coachSchool, hireCoach, newCoach, availableCoaches, backfillHitsErrors, placeRemaining, clearPoints, pointsLeft, migrateLeague, applyAlignment, canApplyAlignment, syncCoachBonus, devTotal, coachResumes, coachPrestige, prestigeLabel, coachBonus, programPrestiges, programLabel, fitLabel } from './league.js?v=20261103150524';
-import { hotSeat, HEAT } from './hotseat.js?v=20261103150524';
-import { setRating } from './ratings.js?v=20261103150524';
-import { confFormatName, aqConferences, aqMinOf, postseasonFinish, postseasonDetail, postseasonRecord, wsTeams, postWeeks, regWeeksOf, ncaaConfig, ncaaProblems, fieldSize, hasSupers, formatSummary, proposeField, DEFAULT_NCAA, mcwsVenue, allEvents, gameVenue } from './postseason.js?v=20261103150524';
-import { DEFAULT_TOURNEY_WEEKS, DEFAULT_REG_WEEKS, DEFAULT_CONF_MATCHES, DEFAULT_MAX_MATCHES, confTarget } from './schedule.js?v=20261103150524';
-import { exportLeague, clearLeague } from './store.js?v=20261103150524';
-import { conferencesFor, sideOf } from './data.js?v=20261103150524';
-import { clamp, fmtPct } from './util.js?v=20261103150524';
-import { recordBook, teamPollHistory, headToHead } from './records.js?v=20261103150524';
+import { readAauLogos, applyAauLogos, DEFAULT_LOGOS } from './logo-import.js?v=20261103153144';
+import { AAU_SCHOOLS, AAU_CONFERENCES } from './aau-schools.js?v=20261103153144';
+import { ctx, S, app, modal, $, $$, esc, toast, changed, persist, flushSave, cache, team, teamInfo, logoImg, teamOptions, teamHref, confLogo, confHref, confInfo, confColor, imageFileToDataUrl, readableOn, openGame, resultText, periodNote, gameDateOf, seasonLabel, seasonSpan } from './ui.js?v=20261103153144';
+import { isFinal, winnerOf, resultFor, records, rpi, confStandings, regSeasonChamp, regSeasonChamps, isIndependent } from './standings.js?v=20261103153144';
+import { ovr } from './sim.js?v=20261103153144';
+import { latestPoll, pollRankMap, pollSizeOf, POLL_SIZES, DEFAULT_POLL_SIZE } from './polls.js?v=20261103153144';
+import { addTeam, removeTeam, renameTeam, addConference, renameConference, deleteConference, rebuildSchedule, startNextSeason, weekName, newLeague, beginOffseason, draftRemoveTeam, draftRestoreTeam, draftWarnings, coachName, coachSchool, hireCoach, newCoach, availableCoaches, backfillHitsErrors, placeRemaining, clearPoints, pointsLeft, migrateLeague, applyAlignment, canApplyAlignment, syncCoachBonus, devTotal, coachResumes, coachPrestige, prestigeLabel, coachBonus, programPrestiges, programLabel, fitLabel } from './league.js?v=20261103153144';
+import { hotSeat, HEAT } from './hotseat.js?v=20261103153144';
+import { setRating } from './ratings.js?v=20261103153144';
+import { confFormatName, aqConferences, aqMinOf, postseasonFinish, postseasonDetail, postseasonRecord, wsTeams, postWeeks, regWeeksOf, ncaaConfig, ncaaProblems, fieldSize, hasSupers, formatSummary, proposeField, DEFAULT_NCAA, mcwsVenue, allEvents, gameVenue } from './postseason.js?v=20261103153144';
+import { DEFAULT_TOURNEY_WEEKS, DEFAULT_REG_WEEKS, DEFAULT_CONF_MATCHES, DEFAULT_MAX_MATCHES, confTarget } from './schedule.js?v=20261103153144';
+import { exportLeague, clearLeague } from './store.js?v=20261103153144';
+import { conferencesFor, sideOf } from './data.js?v=20261103153144';
+import { clamp, fmtPct } from './util.js?v=20261103153144';
+import { recordBook, teamPollHistory, headToHead } from './records.js?v=20261103153144';
 
 const ui = { confFilter: '', ncaaDraft: null, teamSort: { k: 'ovr', dir: -1 }, coachSort: { k: 'now', dir: -1 }, teamTab: 'season', h2hSort: { k: 'g', dir: -1 }, h2hFilter: 'all', memberSort: { k: 'titles', dir: -1 } };
 
@@ -106,7 +106,7 @@ export function renderTeams() {
   const val = (t, k) => ({ team: t.school, coach: coachName(ctx.league, t.coachId) || '~', conf: t.conference, off: t.off, pit: t.pit, def: t.def, ovr: t.off * 0.4 + t.pit * 0.3 + t.def * 0.3, rec: pct(t), poll: pr[t.school] ? -pr[t.school] : null })[k];
   const list = sortBy(Object.values(s.teams).filter(t => !ui.confFilter || t.conference === ui.confFilter), st, val);
   app.innerHTML = `
-    <div class="section-head"><h1>${s.year} Teams</h1><span class="muted">${Object.keys(s.teams).length} teams</span><span class="spacer"></span><button class="btn primary" id="t-add">+ Add team</button></div>
+    <div class="section-head"><h1>${seasonLabel(s.year)} Teams</h1><span class="muted">${Object.keys(s.teams).length} teams</span><span class="spacer"></span><button class="btn primary" id="t-add">+ Add team</button></div>
     <div class="chips"><button class="chip ${!ui.confFilter ? 'active' : ''}" data-cf="">All</button>${confs.map(c => `<button class="chip ${ui.confFilter === c ? 'active' : ''}" data-cf="${esc(c)}">${esc(c)}</button>`).join('')}</div>
     <div class="card"><div class="table-wrap"><table class="teams-table">
       <thead><tr><th class="num">#</th>${sortTh(st, 'team', 'Team', { num: false, text: true })}${sortTh(st, 'coach', 'Head coach', { num: false, text: true })}${sortTh(st, 'conf', 'Conference', { num: false, text: true })}${sortTh(st, 'off', 'OFF', { title: 'Offense' })}${sortTh(st, 'pit', 'MID', { title: 'Two-way play and special teams' })}${sortTh(st, 'def', 'DEF', { title: 'Defense and goaltending' })}${sortTh(st, 'ovr', 'OVR')}${sortTh(st, 'rec', 'Record', { title: 'Sort by winning percentage' })}${sortTh(st, 'poll', 'Poll')}</tr></thead>
@@ -226,7 +226,7 @@ const ordinalWord = n => ['First', 'Second', 'Third', 'Fourth', 'Fifth', 'Sixth'
 export function renderOffseason() {
   const L = ctx.league, cur = L.seasons[L.currentYear];
   if (cur.phase !== 'complete') {
-    app.innerHTML = `<div class="section-head"><h1>Offseason</h1></div><div class="empty">The offseason opens once the ${cur.year} national champion is crowned. Then you can add teams and conferences and realign before the ${cur.year + 1} season.</div>`;
+    app.innerHTML = `<div class="section-head"><h1>Offseason</h1></div><div class="empty">The offseason opens once the ${seasonLabel(cur.year)} national champion is crowned. Then you can add teams and conferences and realign before the ${seasonLabel(cur.year + 1)} season.</div>`;
     return;
   }
   const d = beginOffseason(L);
@@ -269,7 +269,7 @@ export function renderOffseason() {
     const list = teams.filter(t => t.conference === c).sort((a, b) => a.school.localeCompare(b.school));
     return `<div class="card off-conf"><div class="row" style="margin-bottom:8px">${confLogo(c, 28)}<h2 style="margin:0">${esc(c)}</h2><span class="muted small">${list.length} team${list.length === 1 ? '' : 's'}</span><span class="spacer"></span><button class="btn sm" data-addto="${esc(c)}">+ Team</button></div>
       ${list.length ? `<div class="table-wrap"><table class="off-table"><thead><tr><th>Team</th><th>Head coach</th><th class="num" title="Rating points earned from last season's results, plus luck">Points</th><th class="num">ATK</th><th class="num">SRV</th><th class="num">DEF</th><th class="num">OVR</th><th>Conference</th><th></th></tr></thead><tbody>
-        ${list.map(t => `<tr data-row="${esc(t.school)}"><td><span class="team">${logoImg(t, 18)}${prev[t.school] ? `<a class="team-link" href="${teamHref(t.school)}">${esc(t.school)}</a>` : esc(t.school)}</span>${!prev[t.school] ? ' <span class="badge real">New</span>' : moved(t) ? ` <span class="badge manual" title="From ${esc(prev[t.school].conference)}">Moved</span>` : ''}${prev[t.school] ? `<div class="small muted">${rec(t.school)} in ${cur.year}${t.dev ? ` · <span class="prog-tag" title="Program prestige ${t.dev.prestige} (50 is average): recent winning, National Tournament bids, Frozen Four trips, titles and final poll ranks, newer seasons counting most">${programLabel(t.dev.prestige)} ${t.dev.prestige}</span>` : ''}</div>` : ''}</td>
+        ${list.map(t => `<tr data-row="${esc(t.school)}"><td><span class="team">${logoImg(t, 18)}${prev[t.school] ? `<a class="team-link" href="${teamHref(t.school)}">${esc(t.school)}</a>` : esc(t.school)}</span>${!prev[t.school] ? ' <span class="badge real">New</span>' : moved(t) ? ` <span class="badge manual" title="From ${esc(prev[t.school].conference)}">Moved</span>` : ''}${prev[t.school] ? `<div class="small muted">${rec(t.school)} in ${seasonLabel(cur.year)}${t.dev ? ` · <span class="prog-tag" title="Program prestige ${t.dev.prestige} (50 is average): recent winning, National Tournament bids, Frozen Four trips, titles and final poll ranks, newer seasons counting most">${programLabel(t.dev.prestige)} ${t.dev.prestige}</span>` : ''}</div>` : ''}</td>
           ${coachCell(t)}${pointsCell(t)}
           ${['off', 'pit', 'def'].map(k => ratingCell(t, k)).join('')}
           <td class="num ovr-cell"><b>${ovr(t)}</b></td>
@@ -317,9 +317,9 @@ export function renderOffseason() {
   let unplaced = teams.filter(t => t.dev && pointsLeft(t) !== 0).length;
   const ptsStatus = n => n ? `${n} team${n === 1 ? ' has' : 's have'} points to place or ${n === 1 ? 'is' : 'are'} over budget` : 'Every team\'s points are placed';
   app.innerHTML = `
-    <div class="section-head"><h1>${d.year} Offseason</h1><span class="muted">${teams.length} teams in ${new Set(teams.map(t => t.conference)).size} conferences</span><span class="spacer"></span>
-      <button class="btn" id="o-conf">+ Add conference</button><button class="btn" id="o-team">+ Add team</button><button class="btn primary" id="o-start">Start the ${d.year} season</button></div>
-    <div class="hint">Set up the ${d.year} season. Each team earned <b>rating points</b> from last season (a winning record and a deep postseason run earn more; teams near the top lose some to graduation; plus some luck). The <b>Points</b> column shows what each team has to place: use − and + on OFF, MID and DEF to put them where they make sense (a team with negative points takes them off). <b>Auto</b> places a team's remaining points at random, and <b>Reset</b> undoes its placements. Move teams with the <b>Conference</b> menus, add teams or conferences, and run the coaching carousel. Nothing is scheduled until you start the season.</div>
+    <div class="section-head"><h1>${seasonLabel(d.year)} Offseason</h1><span class="muted">${teams.length} teams in ${new Set(teams.map(t => t.conference)).size} conferences</span><span class="spacer"></span>
+      <button class="btn" id="o-conf">+ Add conference</button><button class="btn" id="o-team">+ Add team</button><button class="btn primary" id="o-start">Start the ${seasonLabel(d.year)} season</button></div>
+    <div class="hint">Set up the ${seasonLabel(d.year)} season. Each team earned <b>rating points</b> from last season (a winning record and a deep postseason run earn more; teams near the top lose some to graduation; plus some luck). The <b>Points</b> column shows what each team has to place: use − and + on OFF, MID and DEF to put them where they make sense (a team with negative points takes them off). <b>Auto</b> places a team's remaining points at random, and <b>Reset</b> undoes its placements. Move teams with the <b>Conference</b> menus, add teams or conferences, and run the coaching carousel. Nothing is scheduled until you start the season.</div>
     ${warnings.length ? `<div class="hint warn" style="margin-top:10px">${warnings.map(esc).join('<br>')}</div>` : ''}
     ${removed.length ? `<div class="card" style="margin-top:14px"><b>Leaving the dynasty:</b> ${removed.map(t => `<span class="chip-static">${esc(t)} <button class="btn sm" data-restore="${esc(t)}">Bring back</button></span>`).join(' ')}</div>` : ''}
     <div style="margin-top:14px">${carousel}</div>
@@ -372,7 +372,7 @@ export function renderOffseason() {
   $$('[data-unkeep]').forEach(b => (b.onclick = () => { delete d.kept[b.dataset.unkeep]; changed({ progress: false }); }));
   $('#o-newcoach').onclick = async () => { const n = await askCoachName('Add a coach'); if (n) { newCoach(L, n); changed({ progress: false }); toast(`${n} added as an available coach.`); } else ctx.render(); };
   $$('[data-dconf]').forEach(sel => (sel.onchange = () => { T[sel.dataset.dconf].conference = sel.value; changed({ progress: false }); toast(`${sel.dataset.dconf} moves to the ${sel.value}.`); }));
-  $$('[data-drm]').forEach(b => (b.onclick = () => { if (confirm(`Remove ${b.dataset.drm} from the dynasty starting in ${d.year}? Its history stays.`)) { draftRemoveTeam(L, b.dataset.drm); changed({ progress: false }); } }));
+  $$('[data-drm]').forEach(b => (b.onclick = () => { if (confirm(`Remove ${b.dataset.drm} from the dynasty starting in ${seasonLabel(d.year)}? Its history stays.`)) { draftRemoveTeam(L, b.dataset.drm); changed({ progress: false }); } }));
   $$('[data-restore]').forEach(b => (b.onclick = () => { draftRestoreTeam(L, b.dataset.restore); changed({ progress: false }); }));
   $$('[data-addto]').forEach(b => (b.onclick = () => teamForm(T, { conference: b.dataset.addto })));
   $$('[data-delconf]').forEach(b => (b.onclick = () => { try { deleteConference(L, { teams: T }, b.dataset.delconf); changed({ progress: false }); } catch (e) { toast(e.message, true); } }));
@@ -380,9 +380,9 @@ export function renderOffseason() {
   $('#o-conf').onclick = () => conferenceForm();
   $('#o-start').onclick = () => {
     const extra = unplaced ? ` ${unplaced} team${unplaced === 1 ? ' still has' : 's still have'} rating points not placed. Unplaced points are lost; ratings stay as they are now.` : '';
-    if (!confirm(`Start the ${d.year} season with ${Object.keys(T).length} teams? The schedule is built from this alignment.${extra}`)) return;
+    if (!confirm(`Start the ${seasonLabel(d.year)} season with ${Object.keys(T).length} teams? The schedule is built from this alignment.${extra}`)) return;
     try { const ns = startNextSeason(L); L.viewYear = ns.year; } catch (e) { return toast(e.message, true); }
-    location.hash = '#/home'; changed({ progress: false }); toast(`Welcome to ${d.year}.`);
+    location.hash = '#/home'; changed({ progress: false }); toast(`Welcome to ${seasonLabel(d.year)}.`);
   };
 }
 
@@ -479,14 +479,14 @@ function teamHistoryTab(name, t, history) {
   const color = t.color === '#000000' || t.color === '#FFFFFF' ? t.altColor : t.color;
   const kpi = (v, l) => `<div class="kpi"><div class="v">${v}</div><div class="l">${l}</div></div>`;
   const nr = v => v ?? '<span class="muted">NR</span>';
-  const chartPts = finals.map(x => ({ label: `'${String(x.year).slice(-2)}`, title: `${x.year} final poll`, rank: x.final }));
+  const chartPts = finals.map(x => ({ label: seasonLabel(x.year).slice(2), title: `${seasonLabel(x.year)} final poll`, rank: x.final }));
   return `
     <div class="card"><h2>All-time</h2><div class="kpis kpis-sm">
       ${kpi(prog.seasons, 'Seasons')}${kpi(`${prog.w}-${prog.l}-${prog.t || 0}`, 'Record')}${kpi(fmtPct(prog.w / ((prog.w + prog.l + (prog.t || 0)) || 1)), 'Win pct')}
       ${kpi(prog.reg, 'Reg. season titles')}${kpi(prog.conf, 'Tournament titles')}${kpi(prog.ncaa, 'National Tournaments')}${kpi(prog.mcws, 'Frozen Four')}${kpi(prog.titles, 'National titles')}
       ${(() => { const pp = programPrestiges(L, { [name]: t })[name]; return `<div class="kpi" title="Program prestige (50 is average): recent winning, National Tournament bids, Frozen Four trips, titles and final poll ranks, newer seasons counting most. It adds or takes away offseason rating points.">${'<div class="v">'}${pp}</div><div class="l">Prestige · ${programLabel(pp)}</div></div>`; })()}
     </div></div>
-    <div class="card" style="margin-top:16px"><h2>Dynasty record</h2><div class="table-wrap"><table><thead><tr><th>Season</th><th>Conference</th><th>Coach</th><th class="num">Record</th><th class="num">Conf</th><th>Conference finish</th><th>Postseason</th><th class="num">Final rank</th></tr></thead><tbody>       ${history.map(([y, h]) => `<tr><td>${y}</td><td>${(() => { const c = ctx.league.seasons[y].teams[name].conference; return `<a class="conf-cell" href="${confHref(c)}">${confLogo(c, 18)}<span>${esc(c)}</span></a>`; })()}</td><td>${coachLink(ctx.league.seasons[y].teams[name].coachId) || '—'}</td><td class="num">${h.rec.w}-${h.rec.l}-${h.rec.t || 0}</td><td class="num">${h.rec.cw}-${h.rec.cl}-${h.rec.ct || 0}</td><td>${h.pos ? `${h.pos} of ${h.confSize}` : ''}${h.regChamp ? ` <span class="badge">Reg. season ${h.regShared ? 'co-champ' : 'champ'}</span>` : ''}${h.tChamp ? ' <span class="badge gold">Tournament champ</span>' : ''}</td><td>${finishCell(y, h)}</td><td class="num">${h.finalRank ?? '<span class="muted">NR</span>'}</td></tr>`).join('')}</tbody></table></div></div>
+    <div class="card" style="margin-top:16px"><h2>Dynasty record</h2><div class="table-wrap"><table><thead><tr><th>Season</th><th>Conference</th><th>Coach</th><th class="num">Record</th><th class="num">Conf</th><th>Conference finish</th><th>Postseason</th><th class="num">Final rank</th></tr></thead><tbody>       ${history.map(([y, h]) => `<tr><td>${seasonLabel(y)}</td><td>${(() => { const c = ctx.league.seasons[y].teams[name].conference; return `<a class="conf-cell" href="${confHref(c)}">${confLogo(c, 18)}<span>${esc(c)}</span></a>`; })()}</td><td>${coachLink(ctx.league.seasons[y].teams[name].coachId) || '—'}</td><td class="num">${h.rec.w}-${h.rec.l}-${h.rec.t || 0}</td><td class="num">${h.rec.cw}-${h.rec.cl}-${h.rec.ct || 0}</td><td>${h.pos ? `${h.pos} of ${h.confSize}` : ''}${h.regChamp ? ` <span class="badge">Reg. season ${h.regShared ? 'co-champ' : 'champ'}</span>` : ''}${h.tChamp ? ' <span class="badge gold">Tournament champ</span>' : ''}</td><td>${finishCell(y, h)}</td><td class="num">${h.finalRank ?? '<span class="muted">NR</span>'}</td></tr>`).join('')}</tbody></table></div></div>
     <div class="card" style="margin-top:16px"><h2>Ranking history</h2>
       <div class="kpis kpis-sm">
         ${kpi(`${sum('ranked')}<span class="kpi-sep">/</span>${sum('polls')}`, 'Polls ranked')}${kpi(sum('at1'), 'Polls at #1')}${kpi(Number.isFinite(best) ? '#' + best : '—', 'Highest rank')}
@@ -494,7 +494,7 @@ function teamHistoryTab(name, t, history) {
       </div>
       ${chartPts.length > 1 ? `<h3 style="margin-top:14px">Final poll by season</h3>${pollChart(chartPts, color).replace(/<p class="small muted">[^<]*<\/p>/, '')}` : ''}
       <div class="table-wrap"><table><thead><tr><th>Season</th><th class="num">Preseason</th><th class="num">Highest</th><th class="num">Lowest</th><th class="num">Final</th><th class="num">Polls ranked</th><th class="num">At #1</th><th class="num" title="First-place votes across the season">1st-place votes</th></tr></thead><tbody>
-        ${[...ph].reverse().map(x => `<tr><td>${x.year}${x.done ? '' : '<span class="muted">*</span>'}</td><td class="num">${nr(x.pre)}</td><td class="num">${nr(x.high)}</td><td class="num">${nr(x.low)}</td><td class="num">${x.done ? `<b>${nr(x.final)}</b>` : '<span class="muted">—</span>'}</td><td class="num">${x.ranked} of ${x.polls}</td><td class="num">${x.at1 || ''}</td><td class="num">${x.fp || ''}</td></tr>`).join('') || '<tr><td colspan="8" class="muted">No polls yet.</td></tr>'}
+        ${[...ph].reverse().map(x => `<tr><td>${seasonLabel(x.year)}${x.done ? '' : '<span class="muted">*</span>'}</td><td class="num">${nr(x.pre)}</td><td class="num">${nr(x.high)}</td><td class="num">${nr(x.low)}</td><td class="num">${x.done ? `<b>${nr(x.final)}</b>` : '<span class="muted">—</span>'}</td><td class="num">${x.ranked} of ${x.polls}</td><td class="num">${x.at1 || ''}</td><td class="num">${x.fp || ''}</td></tr>`).join('') || '<tr><td colspan="8" class="muted">No polls yet.</td></tr>'}
       </tbody></table></div>
       <p class="small muted">"Lowest" is the lowest rank while ranked. * season in progress.</p></div>`;
 }
@@ -510,7 +510,7 @@ function teamH2HTab(name) {
   rows = st.k === 'g' ? [...rows].sort((a, b) => st.dir * (a.g - b.g) || b.w - a.w || a.opp.localeCompare(b.opp)) : sortBy(rows, st, val);
   const tot = rows.reduce((a, r) => ({ w: a.w + r.w, l: a.l + r.l, t: a.t + (r.t || 0) }), { w: 0, l: 0, t: 0 });
   const winning = rows.filter(r => r.w > r.l).length, losing = rows.filter(r => r.w < r.l).length;
-  const last = r => { const x = r.last; return `<span class="small"><b class="${x.res === 'W' ? 'good' : x.res === 'L' ? 'bad' : ''}">${x.res}</b> ${x.us}-${x.them} · ${x.year} ${x.type === 'regular' ? `Wk ${x.week}` : esc((x.label || '').split(' · ')[0])}${x.oppRank ? ` <span class="muted">vs #${x.oppRank}</span>` : ''}</span>`; };
+  const last = r => { const x = r.last; return `<span class="small"><b class="${x.res === 'W' ? 'good' : x.res === 'L' ? 'bad' : ''}">${x.res}</b> ${x.us}-${x.them} · ${seasonLabel(x.year)} ${x.type === 'regular' ? `Wk ${x.week}` : esc((x.label || '').split(' · ')[0])}${x.oppRank ? ` <span class="muted">vs #${x.oppRank}</span>` : ''}</span>`; };
   return `<div class="card">
     <div class="row" style="margin-bottom:10px"><h2 style="margin:0">Head-to-head</h2><span class="spacer"></span>
       <div class="seg">${[['all', 'All games'], ['conf', 'Conference'], ['post', 'Postseason']].map(([k, l]) => `<button class="btn sm ${f === k ? 'primary' : ''}" data-h2hf="${k}">${l}</button>`).join('')}</div></div>
@@ -611,10 +611,10 @@ export function renderTeamPage(name) {
       </div>
       <a class="btn" href="#/teams">All teams</a>
     </div>
-    <div class="steps">${Object.entries({ season: `${s.year} season`, history: 'Program history', h2h: 'Head-to-head' }).map(([k, l]) => `<a href="${teamHref(name)}" data-ttab="${k}" class="${tab === k ? 'active' : ''}">${l}</a>`).join('')}</div>
+    <div class="steps">${Object.entries({ season: `${seasonLabel(s.year)} season`, history: 'Program history', h2h: 'Head-to-head' }).map(([k, l]) => `<a href="${teamHref(name)}" data-ttab="${k}" class="${tab === k ? 'active' : ''}">${l}</a>`).join('')}</div>
     ${tab === 'history' ? teamHistoryTab(name, t, history) : tab === 'h2h' ? teamH2HTab(name) : `
-    ${inSeason ? '' : `<div class="hint" style="margin-bottom:14px">${esc(name)} isn't in the ${s.year} season. See Program history for its dynasty record.</div>`}
-      <div class="card team-season"><h2>${s.year} season</h2>
+    ${inSeason ? '' : `<div class="hint" style="margin-bottom:14px">${esc(name)} isn't in the ${seasonLabel(s.year)} season. See Program history for its dynasty record.</div>`}
+      <div class="card team-season"><h2>${seasonLabel(s.year)} season</h2>
         <div class="kpis kpis-sm">
           <div class="kpi"><div class="v">${rec.w}-${rec.l}-${rec.t || 0}</div><div class="l">Overall</div></div>
           <div class="kpi"><div class="v">${rec.cw}-${rec.cl}-${rec.ct || 0}</div><div class="l">Conference</div></div>
@@ -645,7 +645,7 @@ export function renderTeamPage(name) {
       <div class="row" style="margin-top:10px"><label class="field" style="flex:1;min-width:220px">Logo image link <input type="text" id="e-logo" placeholder="https://…" value="${esc(t.logoOverride && !t.logoOverride.startsWith('data:') ? t.logoOverride : '')}"></label>
         <label class="btn" style="align-self:flex-end">Upload logo <input type="file" id="e-file" accept="image/*" hidden></label>
         ${t.logoOverride ? '<button class="btn" id="e-clearlogo" style="align-self:flex-end">Use default logo</button>' : ''}</div>
-      <div class="row" style="margin-top:12px"><button class="btn primary" id="e-save">Save changes</button><span class="spacer"></span><button class="btn danger" id="e-remove">Remove from ${s.year}</button></div>
+      <div class="row" style="margin-top:12px"><button class="btn primary" id="e-save">Save changes</button><span class="spacer"></span><button class="btn danger" id="e-remove">Remove from ${seasonLabel(s.year)}</button></div>
     </div>` : ''}`}`;
 
   $$('[data-ttab]').forEach(a => (a.onclick = e => { e.preventDefault(); ui.teamTab = a.dataset.ttab; renderTeamPage(name); }));
@@ -672,7 +672,7 @@ export function renderTeamPage(name) {
     changed({ progress: false }); toast('Saved.');
   };
   $('#e-remove').onclick = () => {
-    if (!confirm(`Remove ${name} from the ${s.year} season? Its unplayed games are deleted; games already played stay in the record.`)) return;
+    if (!confirm(`Remove ${name} from the ${seasonLabel(s.year)} season? Its unplayed games are deleted; games already played stay in the record.`)) return;
     removeTeam(s, name); location.hash = '#/teams'; changed();
   };
 }
@@ -704,7 +704,7 @@ function stints(seasons) {
     const last = out[out.length - 1];
     if (last && last.school === x.school && last.to === x.y - 1) last.to = x.y; else out.push({ school: x.school, from: x.y, to: x.y });
   }
-  return out.map(s => `${esc(s.school)} (${s.from === s.to ? s.from : `${s.from}–${String(s.to).slice(-2)}`})`).join(', ');
+  return out.map(s => `${esc(s.school)} (${seasonSpan(s.from, s.to)})`).join(', ');
 }
 
 const fmtPctLocal = x => x.toFixed(3).replace(/^0/, '');
@@ -758,14 +758,14 @@ export function renderCoachPage(id) {
     </div>
     <div class="card"><h2>Season by season</h2><div class="table-wrap"><table>
       <thead><tr><th>Season</th><th>Program</th><th>Conference</th><th class="num">Record</th><th class="num">Conf</th><th>Conference finish</th><th>Postseason</th><th class="num">Final rank</th></tr></thead>
-      <tbody>${rows.map(({ y, t, h, inProgress }) => `<tr><td>${y}${inProgress ? ' <span class="muted small">(in progress)</span>' : ''}</td><td>${team(t.school, { rank: false })}</td><td>${confLogo(t.conference, 18)} <span class="small">${esc(t.conference)}</span></td>
+      <tbody>${rows.map(({ y, t, h, inProgress }) => `<tr><td>${seasonLabel(y)}${inProgress ? ' <span class="muted small">(in progress)</span>' : ''}</td><td>${team(t.school, { rank: false })}</td><td>${confLogo(t.conference, 18)} <span class="small">${esc(t.conference)}</span></td>
         <td class="num">${h.rec.w}-${h.rec.l}-${h.rec.t || 0}</td><td class="num">${h.rec.cw}-${h.rec.cl}-${h.rec.ct || 0}</td>
         <td>${h.pos && h.rec.cw + h.rec.cl + (h.rec.ct || 0) ? `${h.pos} of ${h.confSize}` : ''}${h.regChamp && !inProgress ? ` <span class="badge">Reg. season ${h.regShared ? 'co-champ' : 'champ'}</span>` : ''}${h.tChamp ? ' <span class="badge gold">Tournament champ</span>' : ''}</td>
         <td>${finishCell(y, h)}</td><td class="num">${h.finalRank ?? '<span class="muted">NR</span>'}</td></tr>`).join('') || '<tr><td colspan="8" class="muted">No seasons as a head coach yet.</td></tr>'}</tbody></table></div></div>
     <div class="card" style="margin-top:16px"><h2>Commissioner edits</h2>
       <div class="row"><button class="btn" id="cp-rename">Rename coach</button>
       ${now ? '' : `<label class="field" style="min-width:220px">Hire as head coach of <select id="cp-hire"><option value="">Choose a program…</option>${Object.values(teamsNow).sort((a, b) => a.school.localeCompare(b.school)).map(t => `<option value="${esc(t.school)}">${esc(t.school)}${t.coachId ? ` (replaces ${esc(coachName(L, t.coachId))})` : ' (open job)'}</option>`).join('')}</select></label>`}</div>
-      <p class="small muted">${L.draft && cur.phase === 'complete' ? `Hiring here applies to the ${L.draft.year} season being set up in the Offseason.` : 'Hiring here applies to the current season.'}</p></div>`;
+      <p class="small muted">${L.draft && cur.phase === 'complete' ? `Hiring here applies to the ${seasonLabel(L.draft.year)} season being set up in the Offseason.` : 'Hiring here applies to the current season.'}</p></div>`;
   $('#cp-rename').onclick = async () => { const n = await askCoachName('Rename coach', c.name); if (n) { c.name = n; changed({ progress: false }); } else ctx.render(); };
   if ($('#cp-hire')) $('#cp-hire').onchange = e => {
     const school = e.target.value; if (!school) return;
@@ -872,7 +872,7 @@ export function renderConferencePage(c) {
   const mval = (m, k) => ({ team: m.team, years: m.first, seasons: m.seasons, conf: cpct(m), overall: opct(m), reg: m.reg, tour: m.tour, ncaa: m.ncaa, mcws: m.mcws, titles: m.reg + m.tour + cpct(m) / 10 })[k];
   const ordered = sortBy(Object.values(members), ms, mval);
   const memberRows = ordered.filter(m => s.teams[m.team]?.conference === c), formerRows = ordered.filter(m => s.teams[m.team]?.conference !== c);
-  const yearsOf = m => (m.first === m.last ? `${m.first}` : `${m.first}–${m.last}`);
+  const yearsOf = m => seasonSpan(m.first, m.last);
   const memberTable = rows => `<div class="table-wrap"><table class="members-table"><thead><tr>${sortTh(ms, 'team', 'Team', { num: false, text: true })}${sortTh(ms, 'years', 'Years', { num: false, title: 'Sort by first season in the conference' })}${sortTh(ms, 'seasons', 'Seasons')}${sortTh(ms, 'conf', 'Conf W-L', { title: 'Sort by conference winning percentage' })}${sortTh(ms, 'overall', 'Overall', { title: 'Sort by winning percentage' })}${sortTh(ms, 'reg', 'Reg. titles')}${sortTh(ms, 'tour', 'Tourn. titles')}${sortTh(ms, 'ncaa', 'Nat. Tourn.', { title: 'AAU National Tournaments' })}${sortTh(ms, 'mcws', 'Frozen Four')}</tr></thead><tbody>
       ${rows.map(m => `<tr><td>${team(m.team, { rank: false })}</td><td class="small">${yearsOf(m)}</td><td class="num">${m.seasons}</td><td class="num"><b>${m.cw}-${m.cl}-${m.ct || 0}</b> <span class="muted small">${m.cw + m.cl + (m.ct || 0) ? fmtPct((m.cw + (m.ct || 0) / 2) / (m.cw + m.cl + (m.ct || 0))) : ''}</span></td><td class="num">${m.w}-${m.l}-${m.t || 0}</td><td class="num">${m.reg || ''}</td><td class="num">${m.tour || ''}</td><td class="num">${m.ncaa || ''}</td><td class="num">${m.mcws || ''}</td></tr>`).join('')}</tbody></table></div>`;
   const vsRows = Object.entries(vsConf).sort((x, z) => (z[1].w + z[1].l + (z[1].t || 0)) - (x[1].w + x[1].l + (x[1].t || 0)));
@@ -885,7 +885,7 @@ export function renderConferencePage(c) {
       <div class="kpi"><div class="v">${titles}</div><div class="l">National title${titles === 1 ? '' : 's'}</div></div>
     </div>
     <div class="grid">
-      <div class="card"><h2>${s.year} standings</h2><div class="table-wrap"><table><thead><tr><th></th><th>Team</th><th class="num">Conf</th><th class="num">Overall</th><th class="num">OVR</th></tr></thead><tbody>
+      <div class="card"><h2>${seasonLabel(s.year)} standings</h2><div class="table-wrap"><table><thead><tr><th></th><th>Team</th><th class="num">Conf</th><th class="num">Overall</th><th class="num">OVR</th></tr></thead><tbody>
         ${st.map((x, i) => `<tr><td class="num muted">${i + 1}</td><td>${team(x.team)}</td><td class="num"><b>${x.cw}-${x.cl}-${x.ct || 0}</b></td><td class="num">${recs[x.team].w}-${recs[x.team].l}-${recs[x.team].t || 0}</td><td class="num">${ovr(s.teams[x.team])}</td></tr>`).join('')}</tbody></table></div></div>
       <div class="card"><h2>Against other conferences</h2>${vsRows.length ? `<div class="table-wrap"><table><thead><tr><th>Opponent</th><th class="num">W-L</th><th class="num">Pct</th></tr></thead><tbody>
         ${vsRows.map(([oc, v]) => `<tr><td>${ctx.league.conferences[oc] ? `<a class="conf-cell" href="${confHref(oc)}">${confLogo(oc, 18)}<span>${esc(oc)}</span></a>` : esc(oc)}</td><td class="num">${v.w}-${v.l}-${v.t || 0}</td><td class="num">${fmtPct(v.w / ((v.w + v.l + (v.t || 0)) || 1))}</td></tr>`).join('')}</tbody></table></div>
@@ -935,7 +935,7 @@ export function renderHistory() {
     ${years.map(y => {
       const se = ctx.league.seasons[y], p = se.post || {};
       const top5 = se.polls?.final?.ranks.slice(0, 5).map(x => x.team) || [];
-      return `<tr><td><b>${y}</b></td><td>${p.champion ? team(p.champion, { rank: false }) : '<span class="muted">In progress</span>'}</td><td>${p.runnerUp ? esc(p.runnerUp) : ''}</td>
+      return `<tr><td><b>${seasonLabel(y)}</b></td><td>${p.champion ? team(p.champion, { rank: false }) : '<span class="muted">In progress</span>'}</td><td>${p.runnerUp ? esc(p.runnerUp) : ''}</td>
         <td class="small">${wsTeams(se).map(esc).join(', ')}</td><td class="small">${top5.map((t, i) => `${i + 1}. ${esc(t)}`).join('<br>')}</td>
         <td class="small">${Object.values(p.confT || {}).map(ev => `${esc(ev.conf)}: ${esc(ev.champion || '—')}`).join('<br>')}</td></tr>`;
     }).join('')}</tbody></table></div></div>`;
@@ -975,7 +975,7 @@ export function renderSettings() {
     <div class="grid">
       <div class="card stack"><h2>League</h2>
         <label class="field">League name <input type="text" id="s-name" value="${esc(L.name)}"></label>
-        <label class="field">${s.year} championship name <input type="text" id="s-mcws" value="${esc(st.mcwsName)}"></label>
+        <label class="field">${seasonLabel(s.year)} championship name <input type="text" id="s-mcws" value="${esc(st.mcwsName)}"></label>
         <div class="row"><label class="field" style="flex:1;min-width:160px">Frozen Four rink <input type="text" id="s-venue" value="${esc(st.mcwsVenue || mcwsVenue(s).stadium)}"></label>
           <label class="field" style="flex:1;min-width:140px">City <input type="text" id="s-city" value="${esc(st.mcwsCity ?? 'Kansas City, Mo.')}"></label></div>
         <label class="field">Poll size <select id="s-poll">${POLL_SIZES.map(n => `<option value="${n}" ${pollSizeOf(cur) === n ? 'selected' : ''}>Top ${n}</option>`).join('')}</select></label>
@@ -983,17 +983,17 @@ export function renderSettings() {
         <label class="field">Ratings between seasons <select id="s-dev">${Object.entries({ none: 'Stay the same', small: 'Small changes', normal: 'Normal changes', big: 'Big changes' }).map(([k, l]) => `<option value="${k}" ${st.development === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
         <p class="small muted">Each new season moves every rating a little toward 70 with some random growth, and you can edit any rating in the offseason.</p>
       </div>
-      <div class="card stack"><h2>Simulation (${s.year})</h2>
+      <div class="card stack"><h2>Simulation (${seasonLabel(s.year)})</h2>
         <label class="field">Upsets in simulated games <select id="s-vol">${[[0.8, 'Fewer'], [1, 'Realistic'], [1.3, 'More'], [1.8, 'Chaos']].map(([v, l]) => `<option value="${v}" ${Number(st.volatility) === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
         <label class="field">Ratings move with results during the season <select id="s-form">${[['none', 'No — ratings stay put'], ['small', 'A little'], ['normal', 'Normal'], ['big', 'A lot']].map(([v, l]) => `<option value="${v}" ${(st.form || 'normal') === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
         <p class="small muted">Games are three 20-minute periods, played minute by minute from the teams' ratings. A regular-season game tied after 60 minutes plays a 5-minute sudden-death overtime and can end in a tie (1 point in the standings, a win 3); postseason games play 20-minute overtimes until someone scores.</p>
         <button class="btn" id="s-backfill" ${missingHE ? '' : 'disabled'}>Estimate missing shots${missingHE ? ` (${missingHE} game${missingHE > 1 ? 's' : ''})` : ''}</button>
-        <p class="small muted" style="margin-top:-6px">Scores you enter by hand get shots on goal and penalty minutes estimated when those boxes are left blank. This fills in ${s.year} games entered earlier with none for either team.</p>
+        <p class="small muted" style="margin-top:-6px">Scores you enter by hand get shots on goal and penalty minutes estimated when those boxes are left blank. This fills in ${seasonLabel(s.year)} games entered earlier with none for either team.</p>
       </div>
       <div class="card stack"><h2>Season</h2>
-        ${isCurrent ? `<a class="btn ${s.phase === 'complete' ? 'primary' : 'disabled'}" href="#/offseason">Go to the ${s.year + 1} offseason</a>
-          <p class="small muted">${s.phase === 'complete' ? 'Add teams and conferences, realign, update coaches, then start the new season. The final poll seeds the new preseason poll.' : 'Opens once the national champion is crowned.'}</p>` : `<p class="muted">You're viewing a past season. Switch to ${L.currentYear} at the top to start a new one.</p>`}
-        <button class="btn" id="s-rebuild" ${canRebuild ? '' : 'disabled'}>Rebuild ${s.year} schedule</button>
+        ${isCurrent ? `<a class="btn ${s.phase === 'complete' ? 'primary' : 'disabled'}" href="#/offseason">Go to the ${seasonLabel(s.year + 1)} offseason</a>
+          <p class="small muted">${s.phase === 'complete' ? 'Add teams and conferences, realign, update coaches, then start the new season. The final poll seeds the new preseason poll.' : 'Opens once the national champion is crowned.'}</p>` : `<p class="muted">You're viewing a past season. Switch to ${seasonLabel(L.currentYear)} at the top to start a new one.</p>`}
+        <button class="btn" id="s-rebuild" ${canRebuild ? '' : 'disabled'}>Rebuild ${seasonLabel(s.year)} schedule</button>
         <p class="small muted">${canRebuild ? 'Makes a new regular-season schedule from the current teams and conferences. Use it after moving teams between conferences before the first game.' : 'Locked: regular-season games have been played.'}</p>
         <button class="btn" id="s-align" ${isCurrent && canApplyAlignment(L) ? '' : 'disabled'}>Use the commissioner's conferences</button>
         <p class="small muted">${isCurrent && canApplyAlignment(L) ? `Puts every team in its starting conference from the AAU Dynasty alignment (${Object.keys(conferencesFor(sideOf(L))).join(', ')}) and rebuilds the schedule.` : 'Only before the first game of the season.'}</p>
@@ -1003,7 +1003,7 @@ export function renderSettings() {
         <label class="field">Most conference games per team <input type="number" id="s-cm" min="2" max="24" value="${cs.confMatches ?? DEFAULT_CONF_MATCHES}"></label>
         <label class="field">Regular-season games per team <input type="number" id="s-max" min="20" max="40" step="2" value="${cs.maxMatches ?? DEFAULT_MAX_MATCHES}"></label>
         <p class="small">About <b>${gamesEstimate(cs, cur)}</b> games per team.</p>
-        <p class="small muted">Used for every new schedule: the next season, or "Rebuild schedule" before any games are played. ${cur.year} runs ${regWeeksOf(cur)} weeks from the first Monday in October, Friday and Saturday games with a holiday break in late December. ${(cs.nonConf || 'fill') === 'fill' ? `Every game is part of a two-game weekend series at one rink. Conference: in a conference of ${cs.confTwiceMax ?? 7} teams or fewer, two series against each opponent, one at each rink; in a bigger one, one series against each, the host swapping every year. Non-conference: series against a different team from another conference each time (nearby teams of a similar level first) until a team has about the games above.` : `Every pair of teams meets: conference opponents in weekend series (${(cs.confSeries || 'split') === 'twice' ? 'two series, one at each rink' : 'a home-and-home, Friday at one rink and Saturday at the other'}), everyone else ${(cs.nonConf || 'single') === 'series' ? 'in one two-game series' : 'once'}.`} Non-conference games come early, conference games later.</p>
+        <p class="small muted">Used for every new schedule: the next season, or "Rebuild schedule" before any games are played. ${seasonLabel(cur.year)} runs ${regWeeksOf(cur)} weeks from the first Monday in October, Friday and Saturday games with a holiday break in late December. ${(cs.nonConf || 'fill') === 'fill' ? `Every game is part of a two-game weekend series at one rink. Conference: in a conference of ${cs.confTwiceMax ?? 7} teams or fewer, two series against each opponent, one at each rink; in a bigger one, one series against each, the host swapping every year. Non-conference: series against a different team from another conference each time (nearby teams of a similar level first) until a team has about the games above.` : `Every pair of teams meets: conference opponents in weekend series (${(cs.confSeries || 'split') === 'twice' ? 'two series, one at each rink' : 'a home-and-home, Friday at one rink and Saturday at the other'}), everyone else ${(cs.nonConf || 'single') === 'series' ? 'in one two-game series' : 'once'}.`} Non-conference games come early, conference games later.</p>
       </div>
       <div class="card stack ncaa-card"><h2>AAU National Tournament</h2>
         <label class="field">Format <select id="n-mode"><option value="reg" ${nc.regionals ? 'selected' : ''}>Regions, then the Frozen Four</option><option value="none" ${nc.regionals ? '' : 'selected'}>No regions: the whole field at the Frozen Four site</option></select></label>
@@ -1016,7 +1016,7 @@ export function renderSettings() {
         <p class="small">${formatSummary(nc)}</p>
         ${probs.length ? `<div class="hint warn">${probs.map(esc).join('<br>')}</div>` : ''}
         <div class="row"><button class="btn primary" id="n-save" ${probs.length || !ncDirty ? 'disabled' : ''}>Save tournament format</button>${ncDirty ? '<button class="btn" id="n-cancel">Undo changes</button>' : ''}</div>
-        <p class="small muted">${cur.post?.cfg ? `The ${cur.year} field is already announced, so a new format starts in ${cur.year + 1}.` : `Applies to the ${cur.year} tournament and every season after.`} Each conference champion gets an automatic bid; the committee picks the rest and seeds the field.${nc.regionals ? ' The top national seeds lead the regions, where every team gets a seed inside its region.' : ''}</p>
+        <p class="small muted">${cur.post?.cfg ? `The ${seasonLabel(cur.year)} field is already announced, so a new format starts in ${seasonLabel(cur.year + 1)}.` : `Applies to the ${seasonLabel(cur.year)} tournament and every season after.`} Each conference champion gets an automatic bid; the committee picks the rest and seeds the field.${nc.regionals ? ' The top national seeds lead the regions, where every team gets a seed inside its region.' : ''}</p>
       </div>
       <div class="card stack"><h2>Backups</h2>
         <p class="small muted">The dynasty is saved in this browser. Download a backup to keep a copy or move it to another device.</p>
@@ -1042,7 +1042,7 @@ export function renderSettings() {
     ui.ncaaDraft = null;
     if (cur.phase === 'selection') proposeField(cur); // resize the proposed field to the new format
     changed();
-    toast(cur.post?.cfg ? `Saved. The new format starts in ${cur.year + 1}.` : `Saved. The ${cur.year} tournament will use ${fieldSize(cs.ncaa)} qualifiers.`);
+    toast(cur.post?.cfg ? `Saved. The new format starts in ${seasonLabel(cur.year + 1)}.` : `Saved. The ${seasonLabel(cur.year)} tournament will use ${fieldSize(cs.ncaa)} qualifiers.`);
   };
   $('#s-name').onchange = e => { L.name = e.target.value.trim() || L.name; changed({ progress: false }); };
   $('#s-venue').onchange = e => { st.mcwsVenue = e.target.value.trim() || mcwsVenue(s).stadium; changed({ progress: false }); };
@@ -1051,17 +1051,17 @@ export function renderSettings() {
   $('#s-dev').onchange = e => { st.development = e.target.value; persist(); };
   $('#s-vol').onchange = e => { st.volatility = Number(e.target.value); persist(); };
   $('#s-backfill').onclick = () => {
-    if (!confirm(`Estimate shots for ${missingHE} hand-entered ${s.year} game${missingHE > 1 ? 's' : ''} that show none?`)) return;
+    if (!confirm(`Estimate shots for ${missingHE} hand-entered ${seasonLabel(s.year)} game${missingHE > 1 ? 's' : ''} that show none?`)) return;
     const k = backfillHitsErrors(s); changed({ progress: false }); toast(`Shots estimated for ${k} game${k === 1 ? '' : 's'}.`);
   };
   $('#s-form').onchange = e => { st.form = e.target.value; changed(); };
   $('#s-rebuild').onclick = () => {
-    if (!confirm(`Replace the ${s.year} regular-season schedule with a new one?`)) return;
+    if (!confirm(`Replace the ${seasonLabel(s.year)} regular-season schedule with a new one?`)) return;
     try { rebuildSchedule(s, L.seasons[s.year - 1] || null); } catch (e) { return toast(e.message, true); }
     changed(); toast('New schedule built.');
   };
   if ($('#s-align')) $('#s-align').onclick = () => {
-    if (!confirm(`Put every team in the commissioner's eight conferences and rebuild the ${s.year} schedule?`)) return;
+    if (!confirm(`Put every team in the commissioner's eight conferences and rebuild the ${seasonLabel(s.year)} schedule?`)) return;
     try { applyAlignment(L); } catch (e) { return toast(e.message, true); }
     changed(); toast('Conferences set and a new schedule built.');
   };

@@ -1,9 +1,9 @@
 // Records page: the dynasty's record book.
 
-import { ctx, app, $$, esc, team } from './ui.js?v=20261103150524';
-import { recordBook, top, pollRecords } from './records.js?v=20261103150524';
-import { coachName, weekName } from './league.js?v=20261103150524';
-import { fmtPct } from './util.js?v=20261103150524';
+import { ctx, app, $$, esc, team, seasonLabel } from './ui.js?v=20261103153144';
+import { recordBook, top, pollRecords } from './records.js?v=20261103153144';
+import { coachName, weekName } from './league.js?v=20261103153144';
+import { fmtPct } from './util.js?v=20261103153144';
 
 const ui = { programSort: 'w', pollSort: 'ranked' };
 
@@ -21,7 +21,7 @@ const PROGRAM_COLS = [
 export function renderRecords() {
   const L = ctx.league, B = recordBook(L);
   if (!B.seasons.length) { app.innerHTML = '<div class="section-head"><h1>Records</h1></div><div class="empty">The record book fills in once games are played.</div>'; return; }
-  const yr = x => `${x.year}${x.done ? '' : '*'}`;
+  const yr = x => `${seasonLabel(x.year)}${x.done ? '' : '*'}`;
   const tm = t => team(t, { rank: false, size: 16 });
   const inProgress = B.seasons.some(x => !x.done);
 
@@ -53,7 +53,7 @@ export function renderRecords() {
   const where = g => g.type === 'regular' ? `Week ${g.week}` : esc((g.label || '').split(' · ')[0]);
   const vs = (g, t) => (t === g.home ? g.away : g.home);
   const gameRow = (t, g, text) => ({ team: t, year: g.year, g, text });
-  const gsub = x => ` ${x.year} · ${where(x.g)} · ${x.text}`;
+  const gsub = x => ` ${seasonLabel(x.year)} · ${where(x.g)} · ${x.text}`;
   const side = (g, t) => (t === g.home ? { R: g.homeR, H: g.homeH, opp: g.away, oR: g.awayR } : { R: g.awayR, H: g.awayH, opp: g.home, oR: g.homeR });
   const both = g => [g.home, g.away].map(t => ({ t, ...side(g, t), at: t === g.home ? 'vs' : 'at' }));
   const goals = G.flatMap(g => both(g).map(x => ({ ...gameRow(x.t, g, `${x.R}–${x.oR} ${x.at} ${esc(x.opp)}`), v: x.R })));
@@ -86,7 +86,7 @@ export function renderRecords() {
     <div class="table-wrap"><table class="rec-table"><thead><tr><th></th><th>Team</th>${POLL_COLS.map(([k, l, tip]) => `<th class="num sortable ${k === pkey ? 'sorted' : ''}" data-rsort="${k}" title="${esc(tip || 'Sort by ' + l)}">${esc(l)}</th>`).join('')}</tr></thead>
     <tbody>${pprogs.map((p, i) => `<tr><td class="num muted">${i + 1}</td><td>${tm(p.team)}</td>${POLL_COLS.map(([k]) => `<td class="num">${k === pkey ? `<b>${p[k] || ''}</b>` : p[k] || ''}</td>`).join('')}</tr>`).join('') || `<tr><td colspan="${POLL_COLS.length + 2}" class="muted">No one has been ranked yet.</td></tr>`}</tbody></table></div>
     <p class="small muted">Click a column to sort. Only programs that have been ranked are listed.</p></div>`;
-  const msub = x => ` ${x.year} · ${pollLabel(x.year, x.key)}`;
+  const msub = x => ` ${seasonLabel(x.year)} · ${pollLabel(x.year, x.key)}`;
   const rises = top(PR.moves.filter(m => m.to), m => m.delta + (m.to ? -m.to / 100 : 0));
   const falls = top(PR.moves.filter(m => m.to), m => -m.delta - m.from / 100);
   const debuts = top(PR.debuts.filter(d => d.key !== 0), d => -d.to);
@@ -96,12 +96,12 @@ export function renderRecords() {
     ${board('Biggest one-week rise', rises, m => `#${m.from} → #${m.to}`, m => `${msub(m)} · +${m.delta}`)}
     ${board('Biggest one-week fall', falls, m => `#${m.from} → #${m.to}`, m => `${msub(m)} · ${m.delta}`)}
     ${board('Highest debut from unranked', debuts, d => `#${d.to}`, msub)}
-    ${board('Most polls at #1 in a season', runs1, r => r.n, r => ` ${r.year} · of ${r.of} polls${r.n === r.of ? ' · wire to wire' : ''}`)}
+    ${board('Most polls at #1 in a season', runs1, r => r.n, r => ` ${seasonLabel(r.year)} · of ${r.of} polls${r.n === r.of ? ' · wire to wire' : ''}`)}
     ${board('Fell out from the highest rank', top(PR.moves.filter(m => !m.to), m => -m.from), m => `#${m.from} → NR`, msub)}
-    <div class="card rec-card"><h3>Wins over #1</h3>${over1.length ? `<ol class="rec-list">${over1.slice(0, 5).map(x => `<li><span class="rec-who">${tm(x.team)}<span class="small muted"> ${x.year} · ${x.type === 'regular' ? `Week ${x.week}` : esc((x.label || '').split(' · ')[0])} · over ${esc(x.opp)}${x.winRank ? ` · as #${x.winRank}` : ' · unranked'}</span></span><b class="rec-val">${x.score}</b></li>`).join('')}</ol>${over1.length > 5 ? `<p class="small muted">Latest 5 of ${over1.length}.</p>` : ''}` : '<p class="muted small">None yet.</p>'}</div>
+    <div class="card rec-card"><h3>Wins over #1</h3>${over1.length ? `<ol class="rec-list">${over1.slice(0, 5).map(x => `<li><span class="rec-who">${tm(x.team)}<span class="small muted"> ${seasonLabel(x.year)} · ${x.type === 'regular' ? `Week ${x.week}` : esc((x.label || '').split(' · ')[0])} · over ${esc(x.opp)}${x.winRank ? ` · as #${x.winRank}` : ' · unranked'}</span></span><b class="rec-val">${x.score}</b></li>`).join('')}</ol>${over1.length > 5 ? `<p class="small muted">Latest 5 of ${over1.length}.</p>` : ''}` : '<p class="muted small">None yet.</p>'}</div>
   </div>`;
 
-  app.innerHTML = `<div class="section-head"><h1>Records</h1><span class="muted">${B.years[0]}–${B.years[B.years.length - 1]} · every season in the dynasty${inProgress ? ' · * season in progress' : ''}</span></div>
+  app.innerHTML = `<div class="section-head"><h1>Records</h1><span class="muted">${B.years.length > 1 ? `${seasonLabel(B.years[0])} to ${seasonLabel(B.years[B.years.length - 1])}` : seasonLabel(B.years[0])} · every season in the dynasty${inProgress ? ' · * season in progress' : ''}</span></div>
     ${programs}
     <h2 class="rec-section">Single season</h2>${seasons}
     <h2 class="rec-section">Single game</h2>${gamesHtml}

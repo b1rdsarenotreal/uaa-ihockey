@@ -32,7 +32,7 @@
 // couldn't be confirmed, starts open. Rinks are each school's home rink
 // (several men's teams play in a bigger arena).
 
-import { DEFAULT_LOGOS } from './logo-import.js?v=20261102233405';
+import { DEFAULT_LOGOS } from './logo-import.js?v=20261103122836';
 
 export const START_YEAR = 2030;
 

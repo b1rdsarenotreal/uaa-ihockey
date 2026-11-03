@@ -137,6 +137,38 @@ for (const side of ['women', 'men']) {
   });
 }
 
+// A game's date: its week and day, a week later when `order` says so.
+const dateOfGame = (s, g) => dateOf(s.year, g.week, g.day).getTime() + ((g.order ?? 0) >= 7 ? 7 * 864e5 : 0);
+check('national tournament rounds come in date order, for every field', () => {
+  for (const side of ['women', 'men']) for (const ncaa of [null, { regionals: 0, wsSize: 6 }, { regionals: 0, wsSize: 8 }, { regionals: 2, perRegional: 4, wsSize: 4 }]) {
+    const league = newLeague({ side }), s = currentSeason(league);
+    if (ncaa) s.settings.ncaa = { ...s.settings.ncaa, ...ncaa };
+    simGames(s, undefined, { autoLock: true, max: 9000 });
+    assert.equal(s.phase, 'complete', `${side} ${JSON.stringify(ncaa)}`);
+    const post = s.games.filter(g => g.type !== 'regular' && g.type !== 'conf');
+    const lastConf = Math.max(...s.games.filter(g => g.type === 'conf').map(g => dateOfGame(s, g)));
+    for (const g of post) {
+      assert.ok(dateOfGame(s, g) > lastConf, `${side}: ${g.label} after the conference tournaments`);
+      // Each game is after every game its teams played earlier in the tournament.
+      const before = post.filter(x => x.id !== g.id && (x.home === g.home || x.away === g.home || x.home === g.away || x.away === g.away) && x.id < g.id);
+      for (const x of before) assert.ok(dateOfGame(s, x) < dateOfGame(s, g), `${side} ${JSON.stringify(ncaa)}: ${x.label} (${x.day}) before ${g.label} (${g.day})`);
+    }
+    const days = s.games.filter(g => g.type === 'mcws').map(g => g.day);
+    if (ncaa?.wsSize === 6) assert.deepEqual([...new Set(days)], side === 'men' ? ['Tue', 'Thu', 'Sat'] : ['Wed', 'Fri', 'Sun']);
+  }
+});
+
+check('older saves: early-week national games moved back to their week', () => {
+  const league = newLeague({ side: 'men' }), s = currentSeason(league);
+  s.settings.ncaa = { ...s.settings.ncaa, regionals: 0, wsSize: 6 };
+  simGames(s, undefined, { autoLock: true, max: 9000 });
+  const qf = s.games.filter(g => g.type === 'mcws' && g.day === 'Tue');
+  for (const g of qf) g.order += 7; // as older versions saved them
+  migrateLeague(league);
+  const sf = s.games.find(g => g.type === 'mcws' && g.day === 'Thu');
+  assert.ok(qf.every(g => g.order < 7 && dateOfGame(s, g) < dateOfGame(s, sf)));
+});
+
 check('clearing a result', () => {
   const s = currentSeason(leagues.women);
   const copy = { ...s.games.find(isFinal) };

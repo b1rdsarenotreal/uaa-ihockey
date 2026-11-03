@@ -17,10 +17,10 @@
 // supers and mcws. The format is locked into the season when the field is
 // announced.
 
-import { blankGame, DAY_ORDER } from './schedule.js?v=20261102233405';
-import { records, rpi, confStandings, conferences, isFinal, winnerOf, loserOf, isTie, resultFor, regularSeasonDone, regSeasonChamp, regSeasonChamps, quadrants } from './standings.js?v=20261102233405';
-import { generatePoll } from './polls.js?v=20261102233405';
-import { hashStr } from './util.js?v=20261102233405';
+import { blankGame, DAY_ORDER } from './schedule.js?v=20261103122836';
+import { records, rpi, confStandings, conferences, isFinal, winnerOf, loserOf, isTie, resultFor, regularSeasonDone, regSeasonChamp, regSeasonChamps, quadrants } from './standings.js?v=20261103122836';
+import { generatePoll } from './polls.js?v=20261103122836';
+import { hashStr } from './util.js?v=20261103122836';
 
 // ---------- tournament format ----------
 
@@ -254,16 +254,38 @@ function endOn(nodes, last) {
 function oneMatchNodes(label) {
   return [{ key: 'R1-1', code: 'Final', a: { seed: 0 }, b: { seed: 1 }, sec: 'W', col: 0, label, day: 'Sat', depth: 1 }];
 }
-// The finals: single elimination for 4 (semifinals Thursday, final Sunday)
-// or 8 teams.
+// The finals: single elimination for 2 to 8 teams on the finals days
+// (`settings.finalDays`: semifinals, final). A field bigger than four opens
+// with quarterfinals two days before the semifinals, in the same week.
 function finalsNodes(size, days = ['Fri', 'Sun']) {
   const nodes = singleElim(size);
-  if (size === 4) for (const n of nodes) n.day = n.label === 'Final' ? days[1] : days[0];
-  else if (size > 4) for (const n of nodes) n.day = { Final: 'Sun', Semifinal: 'Fri' }[n.label] || 'Wed';
-  else for (const n of nodes) n.day = 'Sun';
+  const early = WEEKDAYS[Math.max(0, WEEKDAYS.indexOf(days[0]) - 2)];
+  for (const n of nodes) n.day = n.label === 'Final' ? days[1] : n.label === 'Semifinal' ? days[0] : early;
   for (const n of nodes) { n.label = n.label === 'Final' ? 'National final' : n.label === 'Semifinal' ? 'National semifinal' : n.label; n.code = n.code.replace(/^Final$/, 'National final').replace(/^SF-/, 'Semifinal ').replace(/^QF-/, 'Quarterfinal '); }
   return nodes;
 }
+// Hockey weeks run Monday to Sunday, so a Monday-to-Wednesday game is in the
+// same week as the weekend after it, unless an earlier round of its event
+// was played later in the week (a Saturday semifinal, then a Monday final):
+// then it's the next week, which a game's `order` of 7 or more says.
+export function nextWeekGame(ev, node) {
+  const d = DAY_ORDER[node.day];
+  if (!(d <= DAY_ORDER.Wed)) return false;
+  return (ev?.nodes || []).some(n => (n.depth || 0) < (node.depth || 0) && DAY_ORDER[n.day] > d);
+}
+// Postseason games saved before that rule were all put a week late when
+// played Monday to Wednesday. Returns true when it moved any.
+export function fixEarlyWeekDates(season) {
+  let moved = false;
+  for (const ev of allEvents(season)) for (const node of ev.nodes || []) {
+    const g = node.gameId != null && season.games.find(x => x.id === node.gameId);
+    if (!g || g.type === 'regular' || g.type === 'conf' || !((g.order ?? 0) >= 7) || nextWeekGame(ev, node)) continue;
+    if (!['Mon', 'Tue', 'Wed'].includes(g.day)) continue;
+    g.order -= 7; moved = true;
+  }
+  return moved;
+}
+
 // Four-team regional weekend: Friday G1 and G2; Saturday G3, G4 and G5;
 // Sunday the regional final and, if needed, the second final.
 const REGIONAL_DAYS = { G1: ['Fri', 1], G2: ['Fri', 1.1], G3: ['Sat', 2], G4: ['Sat', 2.1], G5: ['Sat', 2.2], G6: ['Sun', 3], G7: ['Sun', 3.1] };
@@ -525,7 +547,7 @@ function advanceEvent(season, ev, { type, week, name }) {
       const atHome = !!ev.homeSites && (!ev.campusRounds || round <= ev.campusRounds);
       const g = blankGame(season, {
         type, week: week + (node.wk || 0), day: node.day,
-        order: node.t != null ? node.t : DAY_ORDER[node.day] + (type !== 'conf' && ['Mon', 'Tue', 'Wed'].includes(node.day) ? 7 : 0) + (node.key === 'G6' ? 0.5 : 0) + (node.depth || 0) * 0.01,
+        order: node.t != null ? node.t : DAY_ORDER[node.day] + (type !== 'conf' && nextWeekGame(ev, node) ? 7 : 0) + (node.key === 'G6' ? 0.5 : 0) + (node.depth || 0) * 0.01,
         home, away, neutral: atHome ? false : !hosted || atHostAsVisitor, ...(atHostAsVisitor && !atHome ? { site: ev.host } : {}), ...(!atHome && ev.venue ? { venue: { ...ev.venue } } : {}), event: ev.id, node: node.key,
         label: `${name} · ${node.label}`,
         ...(ev.kind === 'series' ? { series: ev.id, bestOf: 3 } : node.key[0] === 'F' && ev.kind === 'mcws' ? { series: `${ev.id}-finals`, bestOf: 3 } : {}),

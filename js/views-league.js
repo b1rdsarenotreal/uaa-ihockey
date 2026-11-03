@@ -1,19 +1,20 @@
 // League pages: teams, team profiles, conferences, history, settings.
 
-import { readAauLogos, applyAauLogos } from './logo-import.js?v=20261103122836';
-import { ctx, S, app, modal, $, $$, esc, toast, changed, persist, flushSave, cache, team, teamInfo, logoImg, teamOptions, teamHref, confLogo, confHref, confInfo, confColor, imageFileToDataUrl, readableOn, openGame, resultText, periodNote, gameDateOf } from './ui.js?v=20261103122836';
-import { isFinal, winnerOf, resultFor, records, rpi, confStandings, regSeasonChamp, regSeasonChamps, isIndependent } from './standings.js?v=20261103122836';
-import { ovr } from './sim.js?v=20261103122836';
-import { latestPoll, pollRankMap, pollSizeOf, POLL_SIZES, DEFAULT_POLL_SIZE } from './polls.js?v=20261103122836';
-import { addTeam, removeTeam, renameTeam, addConference, renameConference, deleteConference, rebuildSchedule, startNextSeason, weekName, newLeague, beginOffseason, draftRemoveTeam, draftRestoreTeam, draftWarnings, coachName, coachSchool, hireCoach, newCoach, availableCoaches, backfillHitsErrors, placeRemaining, clearPoints, pointsLeft, migrateLeague, applyAlignment, canApplyAlignment, syncCoachBonus, devTotal, coachResumes, coachPrestige, prestigeLabel, coachBonus, programPrestiges, programLabel, fitLabel } from './league.js?v=20261103122836';
-import { hotSeat, HEAT } from './hotseat.js?v=20261103122836';
-import { setRating } from './ratings.js?v=20261103122836';
-import { confFormatName, aqConferences, aqMinOf, postseasonFinish, postseasonDetail, postseasonRecord, wsTeams, postWeeks, regWeeksOf, ncaaConfig, ncaaProblems, fieldSize, hasSupers, formatSummary, proposeField, DEFAULT_NCAA, mcwsVenue, allEvents, gameVenue } from './postseason.js?v=20261103122836';
-import { DEFAULT_TOURNEY_WEEKS, DEFAULT_REG_WEEKS, DEFAULT_CONF_MATCHES, DEFAULT_MAX_MATCHES, confTarget } from './schedule.js?v=20261103122836';
-import { exportLeague, clearLeague } from './store.js?v=20261103122836';
-import { conferencesFor, sideOf } from './data.js?v=20261103122836';
-import { clamp, fmtPct } from './util.js?v=20261103122836';
-import { recordBook, teamPollHistory, headToHead } from './records.js?v=20261103122836';
+import { readAauLogos, applyAauLogos, DEFAULT_LOGOS } from './logo-import.js?v=20261103124838';
+import { AAU_SCHOOLS } from './aau-schools.js?v=20261103124838';
+import { ctx, S, app, modal, $, $$, esc, toast, changed, persist, flushSave, cache, team, teamInfo, logoImg, teamOptions, teamHref, confLogo, confHref, confInfo, confColor, imageFileToDataUrl, readableOn, openGame, resultText, periodNote, gameDateOf } from './ui.js?v=20261103124838';
+import { isFinal, winnerOf, resultFor, records, rpi, confStandings, regSeasonChamp, regSeasonChamps, isIndependent } from './standings.js?v=20261103124838';
+import { ovr } from './sim.js?v=20261103124838';
+import { latestPoll, pollRankMap, pollSizeOf, POLL_SIZES, DEFAULT_POLL_SIZE } from './polls.js?v=20261103124838';
+import { addTeam, removeTeam, renameTeam, addConference, renameConference, deleteConference, rebuildSchedule, startNextSeason, weekName, newLeague, beginOffseason, draftRemoveTeam, draftRestoreTeam, draftWarnings, coachName, coachSchool, hireCoach, newCoach, availableCoaches, backfillHitsErrors, placeRemaining, clearPoints, pointsLeft, migrateLeague, applyAlignment, canApplyAlignment, syncCoachBonus, devTotal, coachResumes, coachPrestige, prestigeLabel, coachBonus, programPrestiges, programLabel, fitLabel } from './league.js?v=20261103124838';
+import { hotSeat, HEAT } from './hotseat.js?v=20261103124838';
+import { setRating } from './ratings.js?v=20261103124838';
+import { confFormatName, aqConferences, aqMinOf, postseasonFinish, postseasonDetail, postseasonRecord, wsTeams, postWeeks, regWeeksOf, ncaaConfig, ncaaProblems, fieldSize, hasSupers, formatSummary, proposeField, DEFAULT_NCAA, mcwsVenue, allEvents, gameVenue } from './postseason.js?v=20261103124838';
+import { DEFAULT_TOURNEY_WEEKS, DEFAULT_REG_WEEKS, DEFAULT_CONF_MATCHES, DEFAULT_MAX_MATCHES, confTarget } from './schedule.js?v=20261103124838';
+import { exportLeague, clearLeague } from './store.js?v=20261103124838';
+import { conferencesFor, sideOf } from './data.js?v=20261103124838';
+import { clamp, fmtPct } from './util.js?v=20261103124838';
+import { recordBook, teamPollHistory, headToHead } from './records.js?v=20261103124838';
 
 const ui = { confFilter: '', ncaaDraft: null, teamSort: { k: 'ovr', dir: -1 }, coachSort: { k: 'now', dir: -1 }, teamTab: 'season', h2hSort: { k: 'g', dir: -1 }, h2hFilter: 'all', memberSort: { k: 'titles', dir: -1 } };
 
@@ -135,8 +136,11 @@ export function renderTeams() {
 // or next season's (offseason).
 function teamForm(teams, { note = null, after = () => {}, conference = null } = {}) {
   const confs = Object.keys(ctx.league.conferences).filter(c => !ctx.league.conferences[c].retired);
+  // AAU schools not in the dynasty yet: picking one fills in its details.
+  const aauPick = Object.keys(AAU_SCHOOLS).filter(x => !teams[x]);
   modal.innerHTML = `<div class="modal-head"><h2>Add a team</h2><button class="btn ghost" data-x>✕</button></div>
     <div class="modal-body stack">
+      ${aauPick.length ? `<div class="row"><label class="field" style="flex:1;min-width:200px">AAU school <select id="f-aau"><option value="">Pick an AAU school not in the dynasty yet…</option>${aauPick.map(x => `<option>${esc(x)}</option>`).join('')}</select></label></div>` : ''}
       <div class="row"><label class="field" style="flex:2;min-width:160px">School <input type="text" id="f-school" placeholder="e.g. Oregon State"></label>
         <label class="field" style="flex:1;min-width:110px">Mascot <input type="text" id="f-mascot" placeholder="Beavers"></label>
         <label class="field" style="width:90px">Abbr. <input type="text" id="f-abbr" maxlength="5" placeholder="ORST"></label></div>
@@ -155,11 +159,21 @@ function teamForm(teams, { note = null, after = () => {}, conference = null } = 
   $$('[data-x]', modal).forEach(b => (b.onclick = () => modal.close()));
   modal.onclose = () => ctx.render();
   $('#f-coachsel', modal).onchange = e => { $('#f-coachname-wrap', modal).style.display = e.target.value === '__new' ? '' : 'none'; };
+  const aau = $('#f-aau', modal);
+  if (aau) aau.onchange = () => {
+    const x = AAU_SCHOOLS[aau.value];
+    if (!x) return;
+    const set = (id, v) => { const el = $(id, modal); if (el && v != null) el.value = v; };
+    set('#f-school', aau.value); set('#f-mascot', x.mascot); set('#f-abbr', x.abbr); set('#f-city', x.city);
+    set('#f-color', x.color.toLowerCase()); set('#f-alt', x.altColor.toLowerCase());
+    if (confs.includes(x.conference)) set('#f-conf', x.conference);
+  };
   $('#f-save', modal).onclick = () => {
     const v = id => $(id, modal).value.trim();
     try {
       const pick = v('#f-coachsel');
-      addTeam(ctx.league, teams, { school: v('#f-school'), mascot: v('#f-mascot'), stadium: v('#f-stadium'), city: v('#f-city'), coachId: pick === '__new' ? null : pick, coachName: pick === '__new' ? v('#f-coach') : '', abbr: v('#f-abbr').toUpperCase() || undefined, conference: v('#f-conf'), color: v('#f-color'), altColor: v('#f-alt'), off: rate(v('#f-off')), pit: rate(v('#f-pit')), def: rate(v('#f-def')) });
+      const added = addTeam(ctx.league, teams, { school: v('#f-school'), mascot: v('#f-mascot'), stadium: v('#f-stadium'), city: v('#f-city'), coachId: pick === '__new' ? null : pick, coachName: pick === '__new' ? v('#f-coach') : '', abbr: v('#f-abbr').toUpperCase() || undefined, conference: v('#f-conf'), color: v('#f-color'), altColor: v('#f-alt'), off: rate(v('#f-off')), pit: rate(v('#f-pit')), def: rate(v('#f-def')) });
+      if (!added.logoOverride && DEFAULT_LOGOS[added.school]) added.logoOverride = DEFAULT_LOGOS[added.school];
       after({ rebuild: !!$('#f-rebuild', modal)?.checked });
     } catch (e) { return toast(e.message, true); }
     modal.close(); changed({ progress: false }); toast('Team added.');

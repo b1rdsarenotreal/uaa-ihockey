@@ -1,3 +1,4 @@
+import os
 """Draws the conference logos in img/conf/ as SVG with transparent
 backgrounds. Lettering is converted to outlines (Inter Display Black, SIL
 Open Font License) so the logos look the same everywhere, with no font
@@ -44,14 +45,34 @@ def wave(y, amp, length, x0=-10, x1=130):
     return d + f' V130 H{x0} Z'
 
 
-# Coastal Atlantic Conference: slate navy and sea glass, waves.
-SLATE, SEA, FOAM = '#3A4A5C', '#5CC6C2', '#FFFFFF'
-svg('cac.svg', 'Coastal Atlantic Conference', f'''
-<defs><clipPath id="c"><circle cx="60" cy="60" r="49"/></clipPath></defs>
-<circle cx="60" cy="60" r="57" fill="{SLATE}" stroke="{SEA}" stroke-width="3"/>
-<circle cx="60" cy="60" r="49" fill="none" stroke="{FOAM}" stroke-width="2"/>
-<g clip-path="url(#c)"><path fill="{SEA}" d="{wave(80, 7, 30)}"/><path fill="{FOAM}" opacity=".9" d="{wave(92, 6, 26, -16)}"/><path fill="{SEA}" d="{wave(101, 5, 22, -4)}"/></g>
-{text('CAC', 60, 70, 34, FOAM, 1)}''')
+# Coastal Atlantic Conference: a block CAC in deep navy, after the Metro
+# wordmark (the owner's pick, Nov. 2026), with a thin white edge so it shows
+# on dark backgrounds. Lettering: Russo One (SIL Open Font License,
+# tools/fonts/).
+BLOCK = TTFont(os.path.join(os.path.dirname(__file__), 'fonts', 'RussoOne-Regular.woff'))
+
+
+def block(s, cx, width, fill, edge='#FFFFFF', edge_w=3):
+    """Outlined Russo One text, `width` units wide, centered on (cx, 60)."""
+    from fontTools.pens.boundsPen import BoundsPen
+    gs, cmap, upm = BLOCK.getGlyphSet(), BLOCK.getBestCmap(), BLOCK['head'].unitsPerEm
+    names = [cmap[ord(c)] for c in s]
+    k = width / sum(gs[n].width for n in names)
+    bp = BoundsPen(gs)
+    for n in names: gs[n].draw(bp)
+    base = 60 + bp.bounds[3] * k / 2
+    x, parts = cx - width / 2, []
+    for n in names:
+        pen = SVGPathPen(gs)
+        gs[n].draw(TransformPen(pen, (k, 0, 0, -k, x, base)))
+        parts.append(pen.getCommands())
+        x += gs[n].width * k
+    d = ' '.join(parts)
+    return (f'<path d="{d}" fill="{edge}" stroke="{edge}" stroke-width="{edge_w}" stroke-linejoin="round"/>'
+            f'<path fill="{fill}" d="{d}"/>')
+
+
+svg('cac.svg', 'Coastal Atlantic Conference', block('CAC', 60, 112, '#24364C'))
 
 # Metro Conference: red and charcoal, a city skyline.
 RED, CHAR, WHITE = '#E03A3E', '#23262D', '#FFFFFF'

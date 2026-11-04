@@ -1,16 +1,21 @@
 // Shared UI state and pieces used by every page: the league, saving,
 // team labels and logos, game cards, and the game editor.
 
-import { saveLeague } from './store.js?v=20261104004242';
-import { logoFor } from './logos.js?v=20261104004242';
-import { LOGO_ALIASES } from './data.js?v=20261104004242';
-import { ovr, winProbability, matchOdds, isKnockout, QUARTERS, OT, OT_PERIODS } from './sim.js?v=20261104004242';
-import { records, isFinal, winnerOf, resultFor, isTie, sameConf } from './standings.js?v=20261104004242';
-import { latestPoll, pollRankMap } from './polls.js?v=20261104004242';
-import { afterChange, applyResult, clearResult, simResult, deleteGame, weekName, estimateHE } from './league.js?v=20261104004242';
-import { regWeeksOf, shownSeed, regionalSeed, mcwsVenue, gameVenue } from './postseason.js?v=20261104004242';
-import { DAY_ORDER, dateOf } from './schedule.js?v=20261104004242';
-import { esc } from './util.js?v=20261104004242';
+import { saveLeague } from './store.js?v=20261104005656';
+import { logoFor } from './logos.js?v=20261104005656';
+import { LOGO_ALIASES } from './data.js?v=20261104005656';
+import { ovr, winProbability, matchOdds, isKnockout, QUARTERS, OT, OT_PERIODS } from './sim.js?v=20261104005656';
+import { records, isFinal, winnerOf, resultFor, isTie, sameConf } from './standings.js?v=20261104005656';
+import { latestPoll, pollRankMap } from './polls.js?v=20261104005656';
+import { afterChange, applyResult, clearResult, simResult, deleteGame, weekName, estimateHE } from './league.js?v=20261104005656';
+import { regWeeksOf, shownSeed, regionalSeed, mcwsVenue, gameVenue } from './postseason.js?v=20261104005656';
+import { DAY_ORDER, dateOf } from './schedule.js?v=20261104005656';
+import { esc } from './util.js?v=20261104005656';
+
+// Logo files in this app (img/conf/) carry this release's version, like the
+// scripts do, so a redrawn logo shows right away instead of a cached copy.
+const RELEASE = (() => { try { return new URL(import.meta.url).searchParams.get('v') || ''; } catch { return ''; } })();
+const assetUrl = u => (RELEASE && /^img\//.test(u || '') ? `${u}${u.includes('?') ? '&' : '?'}v=${RELEASE}` : u);
 
 // Seasons are academic years: the 2030 season is "2030–31". Years stay
 // numbers in the data; this is only how they read on screen.
@@ -135,7 +140,7 @@ export function confLogo(c, size = 24) {
   const info = confInfo(c);
   const badge = `<span class="conf-badge" style="width:${size}px;height:${size}px;font-size:${Math.max(8, size * 0.34)}px;background:${esc(info.color)}">${esc(info.abbr || initials(c))}</span>`;
   if (!info.logo) return badge;
-  return `<span class="conf-logo" style="width:${size}px;height:${size}px"><img src="${esc(info.logo)}" alt="" onerror="this.parentNode.classList.add('broken')">${badge}</span>`;
+  return `<span class="conf-logo" style="width:${size}px;height:${size}px"><img src="${esc(assetUrl(info.logo))}" alt="" onerror="this.parentNode.classList.add('broken')">${badge}</span>`;
 }
 
 // Read an image file and shrink it to at most `max` pixels, as a data URL.

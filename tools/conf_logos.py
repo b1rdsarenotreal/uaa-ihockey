@@ -86,44 +86,48 @@ svg('metro.svg', 'Metro Conference', f'''
 {text('METRO', 60, 102, 23, WHITE, 0.4)}
 <rect x="5" y="5" width="110" height="110" rx="20" fill="none" stroke="{WHITE}" stroke-opacity=".9" stroke-width="2.5"/>''')
 
-# Southwest Conference: a throwback to the old SWC (1914–1996): heavy slab
-# SWC under a lone star, with retro sunset stripes, in cornflower blue, navy
-# and sunset orange on cream. Lettering: Alfa Slab One (SIL Open Font
-# License, tools/fonts/).
-SLAB = TTFont(os.path.join(os.path.dirname(__file__), 'fonts', 'AlfaSlabOne-Regular.woff'))
+# Southwest Conference: a slab SWC with a beveled lone star to its right, in
+# the spirit of the Ivy League wordmark (the owner's pick, Nov. 2026): navy
+# lettering, a two-tone sunset-orange star, a thin white edge for dark
+# backgrounds. Lettering: Arvo Bold (SIL Open Font License, tools/fonts/).
+ARVO = TTFont(os.path.join(os.path.dirname(__file__), 'fonts', 'Arvo-Bold.woff'))
 
 
-def slab(s, cx, baseline, size, fill, spacing=0.0):
-    """Outlined Alfa Slab One text centered on cx, sitting on baseline."""
-    gs, cmap, upm = SLAB.getGlyphSet(), SLAB.getBestCmap(), SLAB['head'].unitsPerEm
-    k = size / upm
+def arvo(s, x0, width, cy, fill, edge='#FFFFFF', edge_w=2.6):
+    """Outlined Arvo text, `width` units wide from x0, centered on cy."""
+    from fontTools.pens.boundsPen import BoundsPen
+    gs, cmap = ARVO.getGlyphSet(), ARVO.getBestCmap()
     names = [cmap[ord(c)] for c in s]
-    adv = [gs[n].width * k for n in names]
-    x, parts = cx - (sum(adv) + spacing * (len(s) - 1)) / 2, []
-    for n, a in zip(names, adv):
+    k = width / sum(gs[n].width for n in names)
+    bp = BoundsPen(gs)
+    for n in names: gs[n].draw(bp)
+    base = cy + bp.bounds[3] * k / 2
+    x, parts = x0, []
+    for n in names:
         pen = SVGPathPen(gs)
-        gs[n].draw(TransformPen(pen, (k, 0, 0, -k, x, baseline)))
+        gs[n].draw(TransformPen(pen, (k, 0, 0, -k, x, base)))
         parts.append(pen.getCommands())
-        x += a + spacing
-    return f'<path fill="{fill}" d="{" ".join(parts)}"/>'
+        x += gs[n].width * k
+    d = ' '.join(parts)
+    return (f'<path d="{d}" fill="{edge}" stroke="{edge}" stroke-width="{edge_w}" stroke-linejoin="round"/>'
+            f'<path fill="{fill}" d="{d}"/>')
 
 
-def star(cx, cy, r_out, fill):
+def bevel_star(cx, cy, r_out, light, dark, inner=0.42):
+    """A five-point star in ten triangles, light and dark by turns, with white
+    cuts from the center to the inner corners."""
     pts = []
     for i in range(10):
-        a, r = -math.pi / 2 + i * math.pi / 5, r_out if i % 2 == 0 else r_out * 0.382
-        pts.append(f'{cx + r * math.cos(a):.2f},{cy + r * math.sin(a):.2f}')
-    return f'<polygon fill="{fill}" points="{" ".join(pts)}"/>'
+        a, r = math.radians(-90 + i * 36), r_out if i % 2 == 0 else r_out * inner
+        pts.append((cx + r * math.cos(a), cy + r * math.sin(a)))
+    P = ' '.join(f'{x:.2f},{y:.2f}' for x, y in pts)
+    tri = ''.join(f'<polygon points="{cx},{cy} {pts[i][0]:.2f},{pts[i][1]:.2f} {pts[(i + 1) % 10][0]:.2f},{pts[(i + 1) % 10][1]:.2f}" fill="{light if i % 2 == 0 else dark}"/>' for i in range(10))
+    cuts = ''.join(f'<line x1="{cx}" y1="{cy}" x2="{pts[i][0]:.2f}" y2="{pts[i][1]:.2f}" stroke="#FFFFFF" stroke-width="1.8"/>' for i in (1, 3, 5, 7, 9))
+    return f'<polygon points="{P}" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="2.6" stroke-linejoin="round"/>{tri}{cuts}'
 
 
-CORN, NAVY, SUN, CREAM = '#719AE8', '#1D2D50', '#F28C38', '#FFF6E9'
-svg('swc.svg', 'Southwest Conference', f'''
-<defs><clipPath id="r"><rect x="4" y="4" width="112" height="112" rx="16"/></clipPath></defs>
-<rect x="4" y="4" width="112" height="112" rx="16" fill="{CREAM}"/>
-<g clip-path="url(#r)"><rect x="0" y="74" width="120" height="9" fill="{SUN}"/><rect x="0" y="86" width="120" height="9" fill="{CORN}"/><rect x="0" y="98" width="120" height="22" fill="{NAVY}"/></g>
-{star(60, 22, 11, SUN)}
-{slab('SWC', 60, 66, 36, NAVY, 0.5)}
-<rect x="4" y="4" width="112" height="112" rx="16" fill="none" stroke="{NAVY}" stroke-width="3"/>''')
+NAVY, SUN, SUN_DARK = '#1D2D50', '#F28C38', '#E0761F'
+svg('swc.svg', 'Southwest Conference', arvo('SWC', 4, 74, 60, NAVY) + bevel_star(98, 59, 19, SUN, SUN_DARK))
 
 # UC Athletic Association: Pacific teal and California gold, sun over the ocean.
 TEAL, GOLD = '#0F6E7A', '#F2C14E'

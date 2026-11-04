@@ -1,4 +1,4 @@
-Copyright 2016 The Alfa Slab One Project Authors (http://www.jmsole.cl | info@jmsole.cl), with Reserved Font Name "Alfa Slab".
+Copyright 2010 Anton Koovit. Arvo-Italic.ttf: Copyright 2010 Anton Koovit, Yassin Baggar. Arvo-Bold.ttf: Copyright (c) 2010 by Anton Koovit. Arvo-BoldItalic.ttf: Copyright 2010 Anton Koovit, Yassin Baggar.
 
 This Font Software is licensed under the SIL Open Font License, Version 1.1.
 This license is copied below, and is also available with a FAQ at:

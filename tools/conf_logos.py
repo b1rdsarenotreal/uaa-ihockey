@@ -129,17 +129,69 @@ def bevel_star(cx, cy, r_out, light, dark, inner=0.42):
 NAVY, SUN, SUN_DARK = '#1D2D50', '#F28C38', '#E0761F'
 svg('swc.svg', 'Southwest Conference', arvo('SWC', 4, 74, 60, NAVY) + bevel_star(98, 59, 19, SUN, SUN_DARK))
 
-# UC Athletic Association: Pacific teal and California gold, sun over the ocean.
-TEAL, GOLD = '#0F6E7A', '#F2C14E'
-shield = 'M60 6 L107 19 V57 C107 86 88 104 60 114 C32 104 13 86 13 57 V19 Z'
-svg('ucaa.svg', 'UC Athletic Association', f'''
-<defs><clipPath id="u"><path d="{shield}"/></clipPath></defs>
-<path d="{shield}" fill="{TEAL}"/>
-<g clip-path="url(#u)"><circle cx="60" cy="52" r="20" fill="{GOLD}"/><rect x="0" y="52" width="120" height="70" fill="{TEAL}"/>
-<path fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" d="M28 58 q8 -5 16 0 t16 0 t16 0 t16 0"/>
-<path fill="none" stroke="{GOLD}" stroke-width="3" stroke-linecap="round" d="M34 66 q6.5 -4 13 0 t13 0 t13 0 t13 0"/></g>
-{text('UCAA', 60, 92, 22, '#FFFFFF', 0.5)}
-<path d="{shield}" fill="none" stroke="{GOLD}" stroke-width="4" stroke-linejoin="round"/>''')
+# UC Athletic Association: a sunset over the Pacific in block letters, after
+# the Sun Belt wordmark (the owner's pick, Nov. 2026). UC over AA in Bungee
+# (SIL Open Font License, tools/fonts/): California-gold sky over a wavy
+# Pacific-teal sea, a deeper swell below, and a white sun on the waterline
+# between the U and the C, its rays cutting up through both. A thin white
+# edge for dark backgrounds.
+BUNGEE = TTFont(os.path.join(os.path.dirname(__file__), 'fonts', 'Bungee-Regular.woff'))
+
+
+def bungee_row(s, cx, width, top, spacing):
+    """[(path, x0, x1)] per letter, `width` wide centered on cx, cap top at
+    `top`; and the cap height."""
+    from fontTools.pens.boundsPen import BoundsPen
+    gs, cmap = BUNGEE.getGlyphSet(), BUNGEE.getBestCmap()
+    names = [cmap[ord(c)] for c in s]
+    k = (width - spacing * (len(s) - 1)) / sum(gs[n].width for n in names)
+    bp = BoundsPen(gs)
+    for n in names: gs[n].draw(bp)
+    cap = bp.bounds[3] * k
+    x, out = cx - width / 2, []
+    for n in names:
+        pen = SVGPathPen(gs)
+        gs[n].draw(TransformPen(pen, (k, 0, 0, -k, x, top + cap)))
+        out.append((pen.getCommands(), x, x + gs[n].width * k))
+        x += gs[n].width * k + spacing
+    return out, cap
+
+
+def wave_line(y, amp, period, up=True, x0=-10, x1=130):
+    d, x = f'M{x0} {y}', x0
+    while x < x1:
+        h, dy = period / 2, (-amp if up else amp) * 1.33
+        d += f' c{h * 0.37:.2f} {dy:.2f} {h * 0.63:.2f} {dy:.2f} {h:.2f} 0'
+        x += h; up = not up
+    return d
+
+
+def sun_rays(cx, cy, n, r1, spread=130, r0=7, w0=0.7, w1=3.2):
+    out = ''
+    for i in range(n):
+        a = math.radians(-90 - spread / 2 + spread * i / (n - 1)); px, py = -math.sin(a), math.cos(a)
+        x0, y0, x1, y1 = cx + r0 * math.cos(a), cy + r0 * math.sin(a), cx + r1 * math.cos(a), cy + r1 * math.sin(a)
+        out += (f'<polygon points="{x0 - px * w0:.2f},{y0 - py * w0:.2f} {x0 + px * w0:.2f},{y0 + py * w0:.2f} '
+                f'{x1 + px * w1:.2f},{y1 + py * w1:.2f} {x1 - px * w1:.2f},{y1 - py * w1:.2f}" fill="#FFFFFF"/>')
+    return out
+
+
+UTEAL, UGOLD, UDEEP = '#0F6E7A', '#F2C14E', '#0A535C'
+uc, c1 = bungee_row('UC', 60, 96, 8, 2.5)
+aa, c2 = bungee_row('AA', 60, 96, 8 + c1 + 6, 2.5)
+letters_d = ' '.join(d for d, _, _ in uc + aa)
+sun_d = ' '.join(d for d, _, _ in uc)
+water, deep, sun_x = 8 + c1 * 0.58, 8 + c1 + 6 + c2 * 0.5, (uc[0][2] + uc[1][1]) / 2
+svg('ucaa.svg', 'UC Athletic Association', f"""<defs><clipPath id="u"><path d="{letters_d}"/></clipPath><clipPath id="us"><path d="{sun_d}"/></clipPath></defs>
+<path d="{letters_d}" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="3.4" stroke-linejoin="round"/>
+<g clip-path="url(#u)">
+<rect x="-10" y="-10" width="140" height="140" fill="{UTEAL}"/>
+<path d="{wave_line(water, 2.6, 26)} V-10 H-10 Z" fill="{UGOLD}"/>
+<path d="{wave_line(deep, 2.08, 20.8, up=False)} V140 H-10 Z" fill="{UDEEP}"/>
+<path d="{wave_line(water, 2.6, 26)}" fill="none" stroke="#FFFFFF" stroke-width="1.6"/>
+</g>
+<g clip-path="url(#us)">{sun_rays(sun_x, water, 7, c1 * 0.85)}<circle cx="{sun_x:.2f}" cy="{water}" r="9" fill="#FFFFFF"/></g>""")
+
 # Pacific-10 Conference: deep navy and gold, peaks over the Pacific.
 PNAVY, PGOLD = '#092346', '#D6A84B'
 hexpts = ' '.join(f'{60 + 55 * math.cos(math.radians(-90 + 60 * k)):.1f},{60 + 55 * math.sin(math.radians(-90 + 60 * k)):.1f}' for k in range(6))

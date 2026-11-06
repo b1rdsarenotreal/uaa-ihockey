@@ -17,10 +17,10 @@
 // supers and mcws. The format is locked into the season when the field is
 // announced.
 
-import { blankGame, DAY_ORDER } from './schedule.js?v=20261105230025';
-import { records, rpi, rating, indexName, usesNpi, confStandings, conferences, isFinal, winnerOf, loserOf, isTie, resultFor, regularSeasonDone, regSeasonChamp, regSeasonChamps, quadrants } from './standings.js?v=20261105230025';
-import { generatePoll } from './polls.js?v=20261105230025';
-import { hashStr } from './util.js?v=20261105230025';
+import { blankGame, DAY_ORDER } from './schedule.js?v=20261106122248';
+import { sameConf, records, rpi, rating, indexName, usesNpi, confStandings, conferences, isFinal, winnerOf, loserOf, isTie, resultFor, regularSeasonDone, regSeasonChamp, regSeasonChamps, quadrants } from './standings.js?v=20261106122248';
+import { generatePoll } from './polls.js?v=20261106122248';
+import { hashStr } from './util.js?v=20261106122248';
 
 // ---------- tournament format ----------
 
@@ -862,7 +862,7 @@ export function bracketology(season) {
   const field = committeeSeeds(season, chosen).map((t, i) => ({ team: t, seed: i + 1, bid: autoSet.has(t) ? 'auto' : 'at-large', conf: season.teams[t].conference }));
   const atLarge = order.filter(t => chosen.includes(t) && !autoSet.has(t));
   const out = order.filter(t => !chosen.includes(t) && !autoSet.has(t) && atLargeEligible(season, t, recs));
-  return { cfg, field, autos, fill, regionals: pods(field, cfg.regionals), lastIn: atLarge.slice(-4), firstOut: out.slice(0, 4), nextOut: out.slice(4, 8) };
+  return { cfg, field, autos, fill, regionals: pods(field, cfg.regionals, season), lastIn: atLarge.slice(-4), firstOut: out.slice(0, 4), nextOut: out.slice(4, 8) };
 }
 
 // Selection, step 1: the commissioner settles which teams are in. Automatic
@@ -946,10 +946,52 @@ export function citySiteNames(season) {
 
 // Serpentine pods: with 4 regionals, regional 1 gets seeds 1, 8, 9, 16,
 // regional 2 gets 2, 7, 10, 15, and so on. Regional k is hosted by seed k+1.
-export function pods(field, regionals = 4) {
+export function pods(field, regionals = 4, season = null) {
   if (!regionals) return [];
   const n = regionals, out = Array.from({ length: n }, () => []);
   field.forEach((f, i) => { const rnd = Math.floor(i / n); const k = rnd % 2 === 0 ? i % n : n - 1 - (i % n); out[k].push(f.team); });
+  return season ? avoidConferenceMatchups(out, season) : out;
+}
+
+// First-round matchups between teams of one conference, across the regionals.
+export function confClashes(podList, season) {
+  const out = [];
+  podList.forEach((teams, r) => {
+    for (const [a, b] of regionalFirstRound(teams.length)) {
+      const x = teams[a - 1], y = b ? teams[b - 1] : null;
+      if (x && y && sameConf(season.teams, x, y)) out.push({ regional: r, teams: [x, y] });
+    }
+  });
+  return out;
+}
+
+// Conference rivals shouldn't meet in the first round (the owner's rule,
+// Nov. 2026), most of all in big fields. After the serpentine, teams on the
+// same seed line (the same regional seed) trade regionals to break up
+// first-round matchups between teams of one conference, lowest seed lines
+// first. If that isn't enough, a team may move one seed line, trading with
+// a team on the next line in another regional. The top line (the national
+// seeds who head the regionals) never moves. A rivalry stays only when
+// nothing else works. The same rule runs for bracketology, the selection
+// preview and the announced field, so they always agree.
+function avoidConferenceMatchups(out, season) {
+  let best = confClashes(out, season).length;
+  if (!best) return out;
+  const lines = Math.max(...out.map(t => t.length));
+  const pass = moves => {
+    let improved = true;
+    while (improved && best) {
+      improved = false;
+      for (const [a, i, b, j] of moves()) {
+        if (!out[a][i] || !out[b][j]) continue;
+        [out[a][i], out[b][j]] = [out[b][j], out[a][i]];
+        const c = confClashes(out, season).length;
+        if (c < best) { best = c; improved = true; if (!best) return; } else [out[a][i], out[b][j]] = [out[b][j], out[a][i]];
+      }
+    }
+  };
+  pass(function* () { for (let L = lines - 1; L >= 1; L--) for (let a = 0; a < out.length; a++) for (let b = a + 1; b < out.length; b++) yield [a, L, b, L]; });
+  pass(function* () { for (let L = lines - 2; L >= 1; L--) for (let a = 0; a < out.length; a++) for (let b = 0; b < out.length; b++) if (a !== b) yield [a, L, b, L + 1]; });
   return out;
 }
 
@@ -959,7 +1001,7 @@ export function lockField(season) {
   const field = [...p.field].sort((a, b) => a.seed - b.seed);
   const home = !!p.cfg.homeSites;
   const sites = season.settings.regionSites || [];
-  p.regionals = pods(field, p.cfg.regionals).map((teams, i) => {
+  p.regionals = pods(field, p.cfg.regionals, season).map((teams, i) => {
     const site = home && p.cfg.campusRounds ? sites[i] : null;
     return {
       id: `reg-${i + 1}`, kind: regionalKind(teams.length), seeds: teams, host: home ? null : teams[0], top: teams[0], homeSites: home, campusRounds: home ? p.cfg.campusRounds || 0 : 0,

@@ -927,3 +927,10 @@ button.bx-sg:hover { border-color: var(--muted); }
 .reg-prev-pair + .reg-prev-pair { margin-top: 6px; }
 .reg-prev-pair .reg-prev-row + .reg-prev-row { border-top: 1px dotted var(--line); }
 .reg-prev-row.bye .reg-prev-team { font-style: italic; }
+
+/* First-round matchups between conference rivals (bracketology, region preview). */
+.bo-pair.clash, .reg-prev-pair.clash { box-shadow: inset 3px 0 0 var(--warn, #c27c0e); }
+.bo-pair { border: 1px solid var(--line); border-radius: 8px; padding: 2px 6px; margin: 6px 0; }
+.bo-pair .bo-row { border-bottom: 0; }
+.bo-pair .bo-row + .bo-row { border-top: 1px dotted var(--line); }
+.bo-row.bye .bo-team { font-style: italic; }

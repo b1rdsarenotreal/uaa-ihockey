@@ -268,3 +268,22 @@ console.log(`${n} checks ok in ${Date.now() - t0} ms`);
   assert.equal(currentSeason(old).settings.index, 'npi');
   console.log('NPI ok');
 }
+
+// ---- Regionals keep conference rivals apart in the first round ----
+{
+  const P = await import('../js/postseason.js');
+  const lg = newLeague({ side: 'women' }), s = currentSeason(lg);
+  simGames(s, g => g.type === 'regular' || g.type === 'conf', { max: 15000 });
+  if (!s.post?.field) P.proposeField(s);
+  const cfg = P.ncaaConfig(s);
+  if (cfg.regionals) {
+    const field = [...s.post.field].sort((a, b) => a.seed - b.seed);
+    const plain = P.pods(field, cfg.regionals), fixed = P.pods(field, cfg.regionals, s);
+    assert.ok(P.confClashes(fixed, s).length <= P.confClashes(plain, s).length, 'never more first-round rivals than the plain serpentine');
+    assert.deepEqual(fixed.map(t => t[0]), plain.map(t => t[0]), 'the top line stays put');
+    assert.deepEqual(fixed.flat().sort(), plain.flat().sort(), 'same teams');
+    P.lockField(s);
+    assert.deepEqual(s.post.regionals.map(ev => ev.seeds), fixed, 'the announced regionals match the preview');
+  }
+  console.log('conference matchups ok');
+}

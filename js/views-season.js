@@ -1,14 +1,14 @@
 // Season pages: home, schedule, standings, rankings and postseason.
 
-import { ctx, S, app, modal, $, $$, esc, toast, changed, persist, cache, team, teamOptions, teamNames, confLogo, confHref, confColor, confInfo, gameCard, compactCard, placeholderCard, bindGameCards, openGame, resultText, periodNote, DAY_NAMES, readableOn, teamInfo, logoImg, teamHref, seasonLabel } from './ui.js?v=20261105174037';
-import { isFinal, winnerOf, resultFor, records, rpi, confStandings, conferences, regSeasonChamp, regSeasonChamps, TIEBREAKERS, quadrants, quadCuts, isIndependent, INDEPENDENT } from './standings.js?v=20261105174037';
-import { latestPoll, generatePoll, pollRankMap, pollSizeOf, VOTER_PANEL, voterStyle, votersOf, addRandomVoter, removeVoter } from './polls.js?v=20261105174037';
-import { ovr } from './sim.js?v=20261105174037';
-import { simGames, addGame, weekName } from './league.js?v=20261105174037';
-import { CONF_FORMATS, confFormatName, confKind , regionalFirstRound } from './postseason.js?v=20261105174037';
-import { COMMITTEE_TIERS, COMMITTEE_SHORT, committeeSheet, compareTeams, mcwsVenue, postWeeks, regWeeksOf, ncaaConfig, hasSupers, noRegionals, fieldSize, wsTeams, formatSummary, shownSeed, postseasonBonus, defaultConfTourneySize, confTourneySeeds, reseedConfTourney, proposeField, lockField, pods, nodeTeams, nodeNeeded, runnerUp, committeeOrder, autoBids, refLabel, setConfFormat, ensureLayout, confHost, setConfHost, mcwsHistory, selectionBoard, setAtLarge, confirmField, unconfirmField, bracketology, BRACKETOLOGY_FROM_WEEK } from './postseason.js?v=20261105174037';
-import { fmtPct, hashStr } from './util.js?v=20261105174037';
-import { DAY_ORDER, CONF_WEEKENDS, applyConfWeekend } from './schedule.js?v=20261105174037';
+import { ctx, S, app, modal, $, $$, esc, toast, changed, persist, cache, team, teamOptions, teamNames, confLogo, confHref, confColor, confInfo, gameCard, compactCard, placeholderCard, bindGameCards, openGame, resultText, periodNote, DAY_NAMES, readableOn, teamInfo, logoImg, teamHref, seasonLabel } from './ui.js?v=20261105175506';
+import { isFinal, winnerOf, resultFor, records, rpi, confStandings, conferences, regSeasonChamp, regSeasonChamps, TIEBREAKERS, quadrants, quadCuts, isIndependent, INDEPENDENT } from './standings.js?v=20261105175506';
+import { latestPoll, generatePoll, pollRankMap, pollSizeOf, VOTER_PANEL, voterStyle, votersOf, addRandomVoter, removeVoter } from './polls.js?v=20261105175506';
+import { ovr } from './sim.js?v=20261105175506';
+import { simGames, addGame, weekName } from './league.js?v=20261105175506';
+import { CONF_FORMATS, confFormatName, confKind , regionalFirstRound } from './postseason.js?v=20261105175506';
+import { COMMITTEE_TIERS, gameVenue, COMMITTEE_SHORT, committeeSheet, compareTeams, mcwsVenue, postWeeks, regWeeksOf, ncaaConfig, hasSupers, noRegionals, fieldSize, wsTeams, formatSummary, shownSeed, postseasonBonus, defaultConfTourneySize, confTourneySeeds, reseedConfTourney, proposeField, lockField, pods, nodeTeams, nodeNeeded, runnerUp, committeeOrder, autoBids, refLabel, setConfFormat, ensureLayout, confHost, setConfHost, mcwsHistory, selectionBoard, setAtLarge, confirmField, unconfirmField, bracketology, BRACKETOLOGY_FROM_WEEK } from './postseason.js?v=20261105175506';
+import { fmtPct, hashStr } from './util.js?v=20261105175506';
+import { DAY_ORDER, CONF_WEEKENDS, applyConfWeekend } from './schedule.js?v=20261105175506';
 
 // " at Lynah Rink, Ithaca, N.Y." for a host school with a home rink.
 const atField = (s, school) => { const t = s.teams[school]; const f = [t?.stadium, t?.city].filter(Boolean).join(', '); return f ? ` at ${esc(f)}` : ''; };
@@ -131,18 +131,21 @@ export function renderSchedule() {
   // from the series (or the game), so a weekend series keeps its spot
   // Friday through Sunday and the order stays the same between visits.
   const mixKey = g => hashStr(`${s.year}|${g.series || 'g' + g.id}`);
-  // Postseason days mix the same way: each event's games keep their order
-  // (Game 1 before Game 2), but the events are shuffled together, so the
-  // day's first games from every tournament come first in a mixed order,
-  // then the next ones, and so on.
+  // Postseason days mix the same way: games at one site keep their order
+  // (Game 1 before Game 2), but sites are shuffled together, so the day's
+  // first games from every site come first in a mixed order, then the next
+  // ones, and so on. Rounds played at the higher seed's field are one game a
+  // site, so they come out fully mixed rather than in bracket order.
   const week = s.games.filter(g => g.week === ui.week);
   const post = week.filter(g => g.type !== 'regular');
   const dayKey = g => DAY_ORDER[g.day] + (g.type !== 'conf' && ['Mon', 'Tue', 'Wed'].includes(g.day) ? 7 : 0);
   const slot = {};
   const byEventDay = {};
-  for (const g of post) (byEventDay[`${g.event || g.type}|${g.day}`] ||= []).push(g);
+  const siteOf = {};
+  for (const g of post) { const v = gameVenue(s, g); siteOf[g.id] = v.host || v.stadium || ''; }
+  for (const g of post) (byEventDay[`${g.event || g.type}|${g.day}|${siteOf[g.id]}`] ||= []).push(g);
   for (const list of Object.values(byEventDay)) list.sort((a, b) => a.order - b.order || a.id - b.id).forEach((g, i) => { slot[g.id] = i; });
-  const postKey = g => hashStr(`${s.year}|${g.event || g.type}|${g.day}|${slot[g.id]}`);
+  const postKey = g => hashStr(`${slot[g.id]}|${g.day}|${s.year}|${siteOf[g.id]}|${g.event || g.type}`);
   const games = week.sort((a, b) => {
     if (a.type === 'regular' && b.type === 'regular') return a.order - b.order || mixKey(a) - mixKey(b) || a.id - b.id;
     if (a.type !== 'regular' && b.type !== 'regular') return dayKey(a) - dayKey(b) || slot[a.id] - slot[b.id] || postKey(a) - postKey(b) || a.id - b.id;

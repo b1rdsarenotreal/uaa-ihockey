@@ -42,6 +42,13 @@ unless the owner asks.
   `settings.finalDays` (men's Thu/Sat, women's Fri/Sun). Automatic bids only
   for conferences of `aqMin` (4) or more; conference tournaments take the
   top 4. User-facing text never says NCAA or MCWS.
+- Selection uses the NCAA Power Index (`npi` in `js/standings.js`, the
+  NCAA's D-III ice hockey dials in `NPI_DIALS`) when `settings.index` is
+  'npi' (the default; `indexVersion` 1 switched older saves from the current
+  or next season on). The committee then goes straight down the NPI: no
+  tiers (`sheet.tiers` empty). `rating(season)` gives the season's index in
+  the RPI's shape (value in `rpi`, plus `rank`, `sosRank`); use it, not
+  `rpi()`, and `indexName(season)` for on-screen labels.
 - On-screen text says "game".
 - Women's and men's: `league.side` is 'women' or 'men', each with its own
   save key (`js/store.js`), team rows and coaches (`js/data.js`, edited

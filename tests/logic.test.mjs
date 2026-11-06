@@ -244,3 +244,27 @@ check('a saved league loads again', () => {
 });
 
 console.log(`${n} checks ok in ${Date.now() - t0} ms`);
+
+// ---- NPI ----
+{
+  const { npi, rating, NPI_DIALS, records } = await import('../js/standings.js');
+  const lg = newLeague({ side: 'men' }), s = currentSeason(lg);
+  assert.equal(s.settings.index, 'npi', 'new leagues use the NPI');
+  simGames(s, g => g.type === 'regular', { max: 6000 });
+  const n = npi(s), r = rating(s);
+  const vals = Object.values(n).map(x => x.npi);
+  const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
+  assert.ok(Math.abs(mean - 50) < 3, `NPI averages near 50 (${mean.toFixed(2)})`);
+  for (const [t, x] of Object.entries(n)) {
+    assert.equal(r[t].rpi, x.npi, 'rating() is the NPI');
+    assert.ok(x.adj.w >= Math.min(NPI_DIALS.minWins, records(s)[t].w), `${t} keeps at least ${NPI_DIALS.minWins} wins`);
+    assert.equal(x.adj.l, records(s)[t].l, 'losses are never dropped');
+  }
+  const order = Object.keys(n).sort((a, b) => n[a].rank - n[b].rank);
+  assert.ok(n[order[0]].npi >= n[order[order.length - 1]].npi);
+  // Older saves switch to the NPI for the season in progress.
+  const old = JSON.parse(JSON.stringify(lg)); delete old.indexVersion; delete currentSeason(old).settings.index;
+  migrateLeague(old);
+  assert.equal(currentSeason(old).settings.index, 'npi');
+  console.log('NPI ok');
+}

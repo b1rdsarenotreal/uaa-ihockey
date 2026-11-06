@@ -13,8 +13,8 @@
 // settings, so they carry into later seasons), remove added voters, and
 // edit any published poll.
 
-import { rng, normal, hashStr, clamp } from './util.js?v=20261105175506';
-import { records, rpi, isFinal, winnerOf, isTie } from './standings.js?v=20261105175506';
+import { rng, normal, hashStr, clamp } from './util.js?v=20261105205818';
+import { records, rpi, rating, indexName, usesNpi, isFinal, winnerOf, isTie } from './standings.js?v=20261105205818';
 
 export const DEFAULT_POLL_SIZE = 15;
 export const POLL_SIZES = [10, 15, 20, 25];
@@ -31,7 +31,7 @@ export const pollSizeOf = season => season?.settings?.pollSize ?? DEFAULT_POLL_S
 const P = (o) => ({ talent: 0, rpi: 0.5, sos: 0, loyalty: 1, recency: 0, losses: 0, region: null, regionBoost: 0, noise: 0.1, ...o });
 export const VOTER_PANEL = [
   { id: 'v1', name: 'Hank Dobbins', outlet: 'Plains Ledger', style: 'Old school. Trusts proven programs and is slow to move teams.', ...P({ talent: 0.25, loyalty: 1.35, noise: 0.08 }) },
-  { id: 'v2', name: 'Priya Raman', outlet: 'Pitchside Analytics', style: 'Numbers first. Leans on the RPI and strength of schedule.', ...P({ talent: -0.2, rpi: 0.75, sos: 0.14, loyalty: 0.85 }) },
+  { id: 'v2', name: 'Priya Raman', outlet: 'Pitchside Analytics', style: 'Numbers first. Leans on the NPI and strength of schedule.', ...P({ talent: -0.2, rpi: 0.75, sos: 0.14, loyalty: 0.85 }) },
   { id: 'v3', name: 'Marcus Bell', outlet: 'Gulf Coast Gazette', style: 'Regional voter. Gives the {conf} a little extra credit.', ...P({ region: 0, regionBoost: 0.09 }) },
   { id: 'v4', name: 'Lena Kowalski', outlet: 'Great Lakes Sports Radio', style: 'Regional voter. Watches the {conf} closely.', ...P({ region: 1, regionBoost: 0.08 }) },
   { id: 'v5', name: 'Tom Whitfield', outlet: 'Desert Sun', style: 'Regional voter. Sees a lot of the {conf}.', ...P({ region: 2, regionBoost: 0.08 }) },
@@ -46,12 +46,12 @@ export const VOTER_PANEL = [
   { id: 'v14', name: 'Sully Grant', outlet: 'Fast Break Podcast', style: 'Likes hot teams. Streaks and big weeks count.', ...P({ recency: 0.15, loyalty: 0.85 }) },
   { id: 'v15', name: 'Nora Lindqvist', outlet: 'North Star Tribune', style: 'Balanced and careful. Close to the consensus.', ...P({ noise: 0.07 }) },
   { id: 'v16', name: 'Pete Varga', outlet: 'Lakeshore Courier', style: 'Regional voter. Gives the {conf} the benefit of the doubt.', ...P({ region: 3, regionBoost: 0.09 }) },
-  { id: 'v17', name: 'Alicia Brooks', outlet: 'Box Score Weekly', style: 'Leans on the RPI more than most.', ...P({ talent: -0.1, rpi: 0.68 }) },
+  { id: 'v17', name: 'Alicia Brooks', outlet: 'Box Score Weekly', style: 'Leans on the NPI more than most.', ...P({ talent: -0.1, rpi: 0.68 }) },
   { id: 'v18', name: 'Ray Thibodeaux', outlet: 'Bayou Sports', style: 'Old school, and hard on teams that lose to unranked opponents.', ...P({ talent: 0.15, losses: 0.1, loyalty: 1.15 }) },
   { id: 'v19', name: 'Kim Sato', outlet: 'Hockey Today', style: 'Consensus voter. Rarely far from the field.', ...P({ noise: 0.05 }) },
   { id: 'v20', name: 'Walt Hensley', outlet: 'Valley Voice', style: 'Loyal to his preseason picks.', ...P({ talent: 0.2, loyalty: 1.3 }) },
   { id: 'v21', name: 'Jess Moreno', outlet: 'Southwest Sports Network', style: 'Résumé voter. Moves to results early in the season.', ...P({ talent: -0.25, rpi: 0.45 }) },
-  { id: 'v22', name: 'Dev Patel', outlet: 'Ratings Lab', style: 'Schedule strength and RPI, with little attention to preseason hype.', ...P({ talent: -0.15, rpi: 0.7, sos: 0.12 }) },
+  { id: 'v22', name: 'Dev Patel', outlet: 'Ratings Lab', style: 'Schedule strength and the NPI, with little attention to preseason hype.', ...P({ talent: -0.15, rpi: 0.7, sos: 0.12 }) },
   { id: 'v23', name: 'Frank Lacey', outlet: 'Coastal Chronicle', style: 'Regional voter. Keeps a close eye on the {conf}.', ...P({ region: 4, regionBoost: 0.08 }) },
 ];
 export const VOTERS = VOTER_PANEL.length;
@@ -68,7 +68,7 @@ const OUTLETS = ['Bleacher Bulletin', 'Blue Line Media', 'Box Seat Digest', 'Pow
 // Personality types; each new voter gets one, with its numbers nudged a little.
 const ARCHETYPES = [
   { style: 'Old school. Trusts proven programs and is slow to move teams.', p: { talent: 0.25, loyalty: 1.3, noise: 0.08 } },
-  { style: 'Numbers first. Leans on the RPI and strength of schedule.', p: { talent: -0.2, rpi: 0.72, sos: 0.13, loyalty: 0.85 } },
+  { style: 'Numbers first. Leans on the NPI and strength of schedule.', p: { talent: -0.2, rpi: 0.72, sos: 0.13, loyalty: 0.85 } },
   { style: 'Regional voter. Gives the {conf} a little extra credit.', p: { regionBoost: 0.08 }, region: true },
   { style: 'Consensus voter. Rarely far from the field.', p: { noise: 0.05 } },
   { style: 'Reacts to last week. Big weeks move teams up fast.', p: { recency: 0.18, loyalty: 0.75, noise: 0.12 } },
@@ -194,7 +194,7 @@ export function resumeScores(season, power, filter = null) {
 // The pieces every voter looks at, through `week`.
 function pollInputs(season, week) {
   const filter = g => g.week <= week;
-  const recs = records(season, filter), r = rpi(season, filter);
+  const recs = records(season, filter), r = rating(season, filter);
   const teams = Object.keys(season.teams);
   const power = powerRatings(season, filter);
   const res = resumeScores(season, power, filter);

@@ -7,9 +7,9 @@
 // season cool it. These are suggestions only: nothing changes until the
 // commissioner fires someone.
 
-import { records, rpi, confStandings, regSeasonChamps, isIndependent } from './standings.js?v=20261105175506';
-import { wsTeams } from './postseason.js?v=20261105175506';
-import { ovr } from './sim.js?v=20261105175506';
+import { records, rpi, rating, indexName, usesNpi, confStandings, regSeasonChamps, isIndependent } from './standings.js?v=20261105205818';
+import { wsTeams } from './postseason.js?v=20261105205818';
+import { ovr } from './sim.js?v=20261105205818';
 
 export const HEAT = {
   fire: { label: 'Fire suggested', min: 2.6 },
@@ -24,7 +24,7 @@ const pct = (w, l) => (w + l ? w / (w + l) : 0.5);
 // What one season looked like for every team (worked out once per season).
 function seasonFacts(season, memo) {
   if (memo.has(season)) return memo.get(season);
-  const all = records(season), reg = records(season, g => g.type === 'regular'), r = rpi(season, g => g.type === 'regular');
+  const all = records(season), reg = records(season, g => g.type === 'regular'), r = rating(season, g => g.type === 'regular');
   const pre = Object.fromEntries(Object.values(season.teams).map(t => [t.school, ovr(t.base || t)]));
   const vals = Object.values(pre), avg = vals.reduce((a, b) => a + b, 0) / (vals.length || 1);
   const confPlace = {}, regTitle = new Set();

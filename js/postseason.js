@@ -17,10 +17,10 @@
 // supers and mcws. The format is locked into the season when the field is
 // announced.
 
-import { blankGame, DAY_ORDER } from './schedule.js?v=20261105175506';
-import { records, rpi, confStandings, conferences, isFinal, winnerOf, loserOf, isTie, resultFor, regularSeasonDone, regSeasonChamp, regSeasonChamps, quadrants } from './standings.js?v=20261105175506';
-import { generatePoll } from './polls.js?v=20261105175506';
-import { hashStr } from './util.js?v=20261105175506';
+import { blankGame, DAY_ORDER } from './schedule.js?v=20261105205818';
+import { records, rpi, rating, indexName, usesNpi, confStandings, conferences, isFinal, winnerOf, loserOf, isTie, resultFor, regularSeasonDone, regSeasonChamp, regSeasonChamps, quadrants } from './standings.js?v=20261105205818';
+import { generatePoll } from './polls.js?v=20261105205818';
+import { hashStr } from './util.js?v=20261105205818';
 
 // ---------- tournament format ----------
 
@@ -613,7 +613,7 @@ export function runnerUp(ev) {
 // ---------- conference tournaments ----------
 
 export function confTourneySeeds(season, conf) {
-  const recs = records(season, g => g.type === 'regular'), r = rpi(season, g => g.type === 'regular');
+  const recs = records(season, g => g.type === 'regular'), r = rating(season, g => g.type === 'regular');
   return confStandings(season, conf, recs, r).map(x => x.team);
 }
 
@@ -715,7 +715,7 @@ export const COMMITTEE_SHORT = { rpi: 'RPI', q1w: 'Q1 W', q4l: 'Q4 L', sos: 'SOS
 
 // Everything the committee looks at, gathered once for a season.
 export function committeeSheet(season) {
-  const r = rpi(season), Q = quadrants(season, r), recs = records(season);
+  const r = rating(season), Q = quadrants(season, r), recs = records(season);
   const autos = new Set(Object.values(autoBids(season)).filter(Boolean));
   const regDone = season.games.some(g => g.type === 'regular') && season.games.filter(g => g.type === 'regular').every(isFinal);
   const reg = new Set(regDone ? conferences(season).flatMap(c => regSeasonChamps(season, c)) : []);
@@ -733,7 +733,9 @@ export function committeeSheet(season) {
       wl: pct(recs[t]?.w || 0, recs[t]?.l || 0, recs[t]?.t || 0), aq: autos.has(t), reg: reg.has(t),
     };
   }
-  return { stat, h2h, r, Q };
+  // With the NPI the committee goes straight down the index, as the NCAA's
+  // NPI sports do: no tiers, every comparison is the higher NPI.
+  return { stat, h2h, r, Q, tiers: usesNpi(season) ? [] : COMMITTEE_TIERS };
 }
 
 // One criterion: 1 if A is better, -1 if B is, 0 if even.
@@ -754,8 +756,9 @@ function criterion(sheet, k, a, b) {
 // was even and the raw RPI decided), won: criteria the better team won in the
 // deciding tier, lost: criteria it lost there }.
 export function compareTeams(sheet, a, b) {
-  for (let i = 0; i < COMMITTEE_TIERS.length; i++) {
-    const res = COMMITTEE_TIERS[i].items.map(([k]) => [k, criterion(sheet, k, a, b)]);
+  const tiers = sheet.tiers || COMMITTEE_TIERS;
+  for (let i = 0; i < tiers.length; i++) {
+    const res = tiers[i].items.map(([k]) => [k, criterion(sheet, k, a, b)]);
     const sum = res.reduce((n, [, v]) => n + v, 0);
     if (sum) {
       const [better, worse] = sum > 0 ? [a, b] : [b, a], sign = sum > 0 ? 1 : -1;
@@ -814,7 +817,7 @@ export function atLargePool(season, order = committeeOrder(season), autoSet = ne
 
 export function autoBids(season) {
   const out = {};
-  const recs = records(season, g => g.type === 'regular'), r = rpi(season, g => g.type === 'regular');
+  const recs = records(season, g => g.type === 'regular'), r = rating(season, g => g.type === 'regular');
   for (const conf of aqConferences(season)) {
     const ev = season.post?.confT?.[conf];
     out[conf] = season.overrides?.autoBids?.[conf] || ev?.champion || regSeasonChamp(season, conf, recs, r);

@@ -1,6 +1,6 @@
-// Records, conference standings with tiebreakers, and the RPI.
+// Records, conference standings with tiebreakers, the RPI and the NPI.
 
-import { pct, hashStr } from './util.js?v=20261105175506';
+import { pct, hashStr } from './util.js?v=20261105205818';
 
 export const isFinal = g => g.final && g.homeR != null && g.awayR != null;
 // A regular-season game still tied after its 5-minute overtime is a tie: a
@@ -96,6 +96,96 @@ export function rpi(season, filter = null) {
   return out;
 }
 
+// The power index: the NCAA Power Index (NPI) by default, the RPI in older
+// seasons (settings.index). Both come back in the same shape, the index value
+// in `rpi` (the shared code's name for it), with `rank` and `sosRank`.
+export const usesNpi = season => season?.settings?.index === 'npi';
+export const indexName = season => (usesNpi(season) ? 'NPI' : 'RPI');
+export function rating(season, filter = null) {
+  return usesNpi(season) ? npi(season, filter) : rpi(season, filter);
+}
+
+// The NCAA's Division III ice hockey NPI dials (2025-26): 25% winning
+// percentage, 75% strength of schedule; away wins and home losses weigh 1.1,
+// home wins and away losses 0.9; a regular-season overtime win is 0.67 of a
+// win (and 0.33 of a loss), a postseason one a full win; a tie is half of
+// each; a win over a team above 53.00 earns (its NPI - 53) x 0.5; and a team
+// keeps at least 9 wins, dropping any others that would lower its NPI.
+export const NPI_DIALS = { win: 25, sos: 75, away: 1.1, home: 0.9, otWin: 0.67, qwbBase: 53, qwbMult: 0.5, minWins: 9 };
+const REG_PERIODS = 3;
+
+// A team's NPI is the weighted average of its game values. A game splits
+// into a win share w and a loss share 1 - w: the win share is worth
+// win + sos% x the opponent's NPI + the quality-win bonus, the loss share
+// sos% x the opponent's NPI, each weighted by where it was played. Every
+// team starts at 50 and the values are worked out again until they settle.
+export function npi(season, filter = null, dials = { ...NPI_DIALS, ...(season.settings?.npi || {}) }) {
+  const D = dials, sosW = D.sos / 100;
+  const games = season.games.filter(g => isFinal(g) && (!filter || filter(g)));
+  const teams = Object.keys(season.teams);
+  const list = {};
+  for (const t of teams) list[t] = [];
+  for (const g of games) {
+    const ot = (g.homeLine?.length || 0) > REG_PERIODS;
+    for (const [t, o, where] of [[g.home, g.away, g.neutral ? 'n' : 'h'], [g.away, g.home, g.neutral ? 'n' : 'a']]) {
+      if (!list[t] || !season.teams[o]) continue;
+      const res = resultFor(g, t);
+      const full = g.type !== 'regular' || !ot;
+      const w = res === 'T' ? 0.5 : res === 'W' ? (full ? 1 : D.otWin) : (full ? 0 : 1 - D.otWin);
+      list[t].push({ o, w, res, ww: where === 'a' ? D.away : where === 'h' ? D.home : 1, lw: where === 'h' ? D.away : where === 'a' ? D.home : 1 });
+    }
+  }
+  let val = Object.fromEntries(teams.map(t => [t, 50]));
+  const sum = (gs, v) => {
+    let num = 0, den = 0;
+    for (const x of gs) {
+      const opp = v[x.o] ?? 50, qwb = opp > D.qwbBase ? (opp - D.qwbBase) * D.qwbMult : 0;
+      num += x.w * x.ww * (D.win + sosW * opp + qwb) + (1 - x.w) * x.lw * sosW * opp;
+      den += x.w * x.ww + (1 - x.w) * x.lw;
+    }
+    return { num, den };
+  };
+  const solve = (t, v) => {
+    const gs = list[t];
+    if (!gs.length) return { value: 50, kept: [] };
+    // Wins can be dropped; everything else stays. Keep the best minWins
+    // wins, then add the rest from best to worst while they raise the NPI.
+    const wins = gs.filter(x => x.res === 'W').map(x => ({ x, v: D.win + sosW * (v[x.o] ?? 50) + Math.max(0, ((v[x.o] ?? 50) - D.qwbBase) * D.qwbMult) }))
+      .sort((a, b) => b.v - a.v);
+    const kept = gs.filter(x => x.res !== 'W');
+    let k = 0;
+    for (; k < Math.min(D.minWins, wins.length); k++) kept.push(wins[k].x);
+    let { num, den } = sum(kept, v);
+    for (; k < wins.length; k++) {
+      if (den && wins[k].v <= num / den) break;
+      const s = sum([wins[k].x], v); num += s.num; den += s.den; kept.push(wins[k].x);
+    }
+    return { value: den ? num / den : 50, kept };
+  };
+  for (let it = 0; it < 200; it++) {
+    const next = {};
+    let diff = 0;
+    for (const t of teams) { next[t] = solve(t, val).value; diff = Math.max(diff, Math.abs(next[t] - val[t])); }
+    val = next;
+    if (diff < 1e-6) break;
+  }
+  const out = {};
+  for (const t of teams) {
+    const { value, kept } = solve(t, val);
+    const n = kept.length, w = kept.reduce((s, x) => s + x.w, 0);
+    const qwb = kept.reduce((s, x) => s + (x.w && val[x.o] > D.qwbBase ? x.w * (val[x.o] - D.qwbBase) * D.qwbMult : 0), 0);
+    const adj = { w: kept.filter(x => x.res === 'W').length, l: kept.filter(x => x.res === 'L').length, t: kept.filter(x => x.res === 'T').length };
+    out[t] = {
+      npi: value, rpi: value, wp: n ? w / n : 0, sos: n ? kept.reduce((s, x) => s + val[x.o], 0) / n : 0, qwb,
+      adj, dropped: list[t].length - n, games: list[t].length,
+    };
+  }
+  const ranked = teams.filter(t => out[t].games).sort((a, b) => out[b].rpi - out[a].rpi);
+  ranked.forEach((t, i) => { out[t].rank = i + 1; });
+  teams.filter(t => out[t].games).sort((a, b) => out[b].sos - out[a].sos).forEach((t, i) => { out[t].sosRank = i + 1; });
+  return out;
+}
+
 // NCAA team-sheet quadrants. A game's quadrant depends on the opponent's RPI
 // rank and where it was played, as on the NCAA's own sheets. These are the
 // cut-offs for a 300-team league; they scale with league size (quadCuts):
@@ -122,7 +212,7 @@ export function quadOf(rank, loc, teamCount = 300) {
   const i = cuts.findIndex(c => rank <= c);
   return i < 0 ? 4 : i + 1;
 }
-export function quadrants(season, r = rpi(season), filter = null) {
+export function quadrants(season, r = rating(season), filter = null) {
   const teams = Object.keys(season.teams), n = teams.length;
   const out = {};
   for (const t of teams) out[t] = { q: quadOf(r[t]?.rank, 'home', n), rec: [0, 1, 2, 3].map(() => ({ w: 0, l: 0, t: 0 })) };
@@ -172,7 +262,7 @@ export const TIEBREAKERS = [
   'Conference points (3 for a win, 1 for a tie)',
   'Head-to-head points among all the tied teams (teams still tied start over with head-to-head among just them)',
   'Points against common conference opponents, starting with the highest-placed opponent and working down',
-  'RPI',
+  'NPI (the RPI in seasons before the switch)',
   'Coin flip',
 ];
 
@@ -206,7 +296,7 @@ function breakTie(season, conf, group, others, r, why) {
     if (split) return recurse(split, { step: 'common', text: `Record vs ${common.join(', ')}` });
   }
   const byRpi = tiers(group, t => r[t]?.rpi ?? 0);
-  if (byRpi) return recurse(byRpi, { step: 'rpi', text: 'RPI' });
+  if (byRpi) return recurse(byRpi, { step: 'rpi', text: indexName(season) });
   // Coin flip: fixed for the season, so the order doesn't change on reload.
   const flip = t => hashStr(`${season.year}|${conf}|${[...group].sort().join('|')}|${t}`);
   for (const t of group) why[t] = { step: 'coin', text: 'Coin flip' };
@@ -217,7 +307,7 @@ function breakTie(season, conf, group, others, r, why) {
 // behind the leader (`gb`). Each row's `tb` says which tiebreaker placed it,
 // when it was tied. Every member plays the same number of conference games,
 // so points rank fairly.
-export function confStandings(season, conf, recs = records(season), r = rpi(season)) {
+export function confStandings(season, conf, recs = records(season), r = rating(season)) {
   const teams = Object.values(season.teams).filter(t => t.conference === conf).map(t => t.school);
   const cp = t => confPts(recs[t]);
   const groups = [];
@@ -254,7 +344,7 @@ export function regularSeasonDone(season) {
 
 // Regular-season champions: every team tied for the most conference points
 // shares the title (a commissioner override names one champion).
-export function regSeasonChamps(season, conf, recs = records(season, g => g.type === 'regular'), r = rpi(season, g => g.type === 'regular')) {
+export function regSeasonChamps(season, conf, recs = records(season, g => g.type === 'regular'), r = rating(season, g => g.type === 'regular')) {
   if (isIndependent(conf)) return [];
   if (season.overrides?.regChamps?.[conf]) return [season.overrides.regChamps[conf]];
   const st = confStandings(season, conf, recs, r);

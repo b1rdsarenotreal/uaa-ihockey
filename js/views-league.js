@@ -1,20 +1,20 @@
 // League pages: teams, team profiles, conferences, history, settings.
 
-import { readAauLogos, applyAauLogos, DEFAULT_LOGOS } from './logo-import.js?v=20261105175506';
-import { AAU_SCHOOLS, AAU_CONFERENCES } from './aau-schools.js?v=20261105175506';
-import { ctx, S, app, modal, $, $$, esc, toast, changed, persist, flushSave, cache, team, teamInfo, logoImg, teamOptions, teamHref, confLogo, confHref, confInfo, confColor, imageFileToDataUrl, readableOn, openGame, resultText, periodNote, gameDateOf, seasonLabel, seasonSpan } from './ui.js?v=20261105175506';
-import { isFinal, winnerOf, resultFor, records, rpi, confStandings, regSeasonChamp, regSeasonChamps, isIndependent } from './standings.js?v=20261105175506';
-import { ovr } from './sim.js?v=20261105175506';
-import { latestPoll, pollRankMap, pollSizeOf, POLL_SIZES, DEFAULT_POLL_SIZE } from './polls.js?v=20261105175506';
-import { addTeam, removeTeam, renameTeam, addConference, renameConference, deleteConference, rebuildSchedule, startNextSeason, weekName, newLeague, beginOffseason, draftRemoveTeam, draftRestoreTeam, draftWarnings, coachName, coachSchool, hireCoach, newCoach, availableCoaches, backfillHitsErrors, placeRemaining, clearPoints, pointsLeft, migrateLeague, applyAlignment, canApplyAlignment, syncCoachBonus, devTotal, coachResumes, coachPrestige, prestigeLabel, coachBonus, programPrestiges, programLabel, fitLabel } from './league.js?v=20261105175506';
-import { hotSeat, HEAT } from './hotseat.js?v=20261105175506';
-import { setRating } from './ratings.js?v=20261105175506';
-import { confFormatName, aqConferences, aqMinOf, postseasonFinish, postseasonDetail, postseasonRecord, wsTeams, postWeeks, regWeeksOf, ncaaConfig, ncaaProblems, fieldSize, hasSupers, formatSummary, proposeField, DEFAULT_NCAA, mcwsVenue, allEvents, gameVenue } from './postseason.js?v=20261105175506';
-import { DEFAULT_TOURNEY_WEEKS, DEFAULT_REG_WEEKS, DEFAULT_CONF_MATCHES, DEFAULT_MAX_MATCHES, confTarget } from './schedule.js?v=20261105175506';
-import { exportLeague, clearLeague } from './store.js?v=20261105175506';
-import { conferencesFor, sideOf } from './data.js?v=20261105175506';
-import { clamp, fmtPct } from './util.js?v=20261105175506';
-import { recordBook, teamPollHistory, headToHead } from './records.js?v=20261105175506';
+import { readAauLogos, applyAauLogos, DEFAULT_LOGOS } from './logo-import.js?v=20261105205818';
+import { AAU_SCHOOLS, AAU_CONFERENCES } from './aau-schools.js?v=20261105205818';
+import { ctx, S, app, modal, $, $$, esc, toast, changed, persist, flushSave, cache, team, teamInfo, logoImg, teamOptions, teamHref, confLogo, confHref, confInfo, confColor, imageFileToDataUrl, readableOn, openGame, resultText, periodNote, gameDateOf, seasonLabel, seasonSpan } from './ui.js?v=20261105205818';
+import { isFinal, winnerOf, resultFor, records, rpi, rating, indexName, usesNpi, confStandings, regSeasonChamp, regSeasonChamps, isIndependent } from './standings.js?v=20261105205818';
+import { ovr } from './sim.js?v=20261105205818';
+import { latestPoll, pollRankMap, pollSizeOf, POLL_SIZES, DEFAULT_POLL_SIZE } from './polls.js?v=20261105205818';
+import { addTeam, removeTeam, renameTeam, addConference, renameConference, deleteConference, rebuildSchedule, startNextSeason, weekName, newLeague, beginOffseason, draftRemoveTeam, draftRestoreTeam, draftWarnings, coachName, coachSchool, hireCoach, newCoach, availableCoaches, backfillHitsErrors, placeRemaining, clearPoints, pointsLeft, migrateLeague, applyAlignment, canApplyAlignment, syncCoachBonus, devTotal, coachResumes, coachPrestige, prestigeLabel, coachBonus, programPrestiges, programLabel, fitLabel } from './league.js?v=20261105205818';
+import { hotSeat, HEAT } from './hotseat.js?v=20261105205818';
+import { setRating } from './ratings.js?v=20261105205818';
+import { confFormatName, aqConferences, aqMinOf, postseasonFinish, postseasonDetail, postseasonRecord, wsTeams, postWeeks, regWeeksOf, ncaaConfig, ncaaProblems, fieldSize, hasSupers, formatSummary, proposeField, DEFAULT_NCAA, mcwsVenue, allEvents, gameVenue } from './postseason.js?v=20261105205818';
+import { DEFAULT_TOURNEY_WEEKS, DEFAULT_REG_WEEKS, DEFAULT_CONF_MATCHES, DEFAULT_MAX_MATCHES, confTarget } from './schedule.js?v=20261105205818';
+import { exportLeague, clearLeague } from './store.js?v=20261105205818';
+import { conferencesFor, sideOf } from './data.js?v=20261105205818';
+import { clamp, fmtPct } from './util.js?v=20261105205818';
+import { recordBook, teamPollHistory, headToHead } from './records.js?v=20261105205818';
 
 const ui = { confFilter: '', ncaaDraft: null, teamSort: { k: 'ovr', dir: -1 }, coachSort: { k: 'now', dir: -1 }, teamTab: 'season', h2hSort: { k: 'g', dir: -1 }, h2hFilter: 'all', memberSort: { k: 'titles', dir: -1 } };
 
@@ -465,7 +465,7 @@ function seasonSummary(season, name) {
   const st = confStandings(season, season.teams[name].conference, reg);
   const pos = st.findIndex(x => x.team === name) + 1;
   const fp = season.polls?.final ? pollRankMap(season.polls.final)[name] : null;
-  return { rec: recs[name], pos, confSize: st.length, tChamp: season.post?.confT?.[season.teams[name].conference]?.champion === name, ...(() => { const cs = regSeasonChamps(season, season.teams[name].conference, reg, rpi(season, g => g.type === 'regular')); return { regChamp: cs.includes(name), regShared: cs.includes(name) && cs.length > 1 }; })(), finish: postseasonFinish(season, name), detail: postseasonDetail(season, name), pr: postseasonRecord(season, name), finalRank: fp };
+  return { rec: recs[name], pos, confSize: st.length, tChamp: season.post?.confT?.[season.teams[name].conference]?.champion === name, ...(() => { const cs = regSeasonChamps(season, season.teams[name].conference, reg, rating(season, g => g.type === 'regular')); return { regChamp: cs.includes(name), regShared: cs.includes(name) && cs.length > 1 }; })(), finish: postseasonFinish(season, name), detail: postseasonDetail(season, name), pr: postseasonRecord(season, name), finalRank: fp };
 }
 
 // Program history: all-time totals, poll history by season, dynasty record.
@@ -593,7 +593,7 @@ export function renderTeamPage(name) {
   const s = S(), t = s.teams[name] || teamInfo(name);
   if (!t) { app.innerHTML = `<div class="empty">No team called ${esc(name)}. <a href="#/teams">All teams</a></div>`; return; }
   const inSeason = !!s.teams[name];
-  const recs = cache.recs(), r = rpi(s), pr = cache.ranks();
+  const recs = cache.recs(), r = rating(s), pr = cache.ranks();
   const rec = recs[name] || { w: 0, l: 0, cw: 0, cl: 0, rs: 0, ra: 0, streak: '', hw: 0, hl: 0, aw: 0, al: 0 };
   const games = s.games.filter(g => g.home === name || g.away === name).sort((a, b) => a.week - b.week || a.order - b.order || a.id - b.id);
   const pollPts = Object.entries(s.polls || {}).sort((a, b) => (a[0] === 'final' ? 99 : +a[0]) - (b[0] === 'final' ? 99 : +b[0]))
@@ -618,7 +618,7 @@ export function renderTeamPage(name) {
         <div class="kpis kpis-sm">
           <div class="kpi"><div class="v">${rec.w}-${rec.l}-${rec.t || 0}</div><div class="l">Overall</div></div>
           <div class="kpi"><div class="v">${rec.cw}-${rec.cl}-${rec.ct || 0}</div><div class="l">Conference</div></div>
-          <div class="kpi"><div class="v">${r[name]?.rank ?? '—'}</div><div class="l">RPI rank</div></div>
+          <div class="kpi"><div class="v">${r[name]?.rank ?? '—'}</div><div class="l">${indexName(s)} rank</div></div>
           <div class="kpi"><div class="v">${rec.rs}<span class="kpi-sep">–</span>${rec.ra}</div><div class="l">Goals for–against</div></div>
           <div class="kpi"><div class="v">${rec.hw}-${rec.hl}-${rec.ht || 0}</div><div class="l">Home</div></div>
           <div class="kpi"><div class="v">${rec.aw}-${rec.al}-${rec.at || 0}</div><div class="l">Away</div></div>
@@ -851,7 +851,7 @@ export function renderConferencePage(c) {
     }
     ncW += w; ncL += l; ncT += tt; totBids += bids.length;
     if (se.post?.champion && inC.has(se.post.champion)) titles++;
-    const regChamps = regSeasonChamps(se, c, rg, rpi(se, g => g.type === 'regular'));
+    const regChamps = regSeasonChamps(se, c, rg, rating(se, g => g.type === 'regular'));
     const regDone = se.games.some(g => g.type === 'regular') && se.games.filter(g => g.type === 'regular').every(isFinal);
     const tChamp = se.post?.confT?.[c]?.champion;
     for (const t of inC) {
@@ -991,6 +991,8 @@ export function renderSettings() {
         <p class="small muted" style="margin-top:-6px">Scores you enter by hand get shots on goal and penalty minutes estimated when those boxes are left blank. This fills in ${seasonLabel(s.year)} games entered earlier with none for either team.</p>
       </div>
       <div class="card stack"><h2>Season</h2>
+        ${(() => { const open = !['regionals', 'supers', 'mcws', 'complete'].includes(s.phase); return `<label class="field">Selection index <select id="s-index" ${open ? '' : 'disabled'}>${[['npi', 'NPI (Power Index)'], ['rpi', 'RPI with the committee tiers']].map(([v, l]) => `<option value="${v}" ${(st.index || 'rpi') === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+        <p class="small muted" style="margin-top:-6px">${open ? `What picks the at-large teams and sets the seeds in ${seasonLabel(s.year)}. With the NPI the committee goes straight down the index, as in the real NPI sports. Each new season keeps this choice.` : `The ${seasonLabel(s.year)} field was picked by the ${indexName(s)}.`}</p>`; })()}
         ${isCurrent ? `<a class="btn ${s.phase === 'complete' ? 'primary' : 'disabled'}" href="#/offseason">Go to the ${seasonLabel(s.year + 1)} offseason</a>
           <p class="small muted">${s.phase === 'complete' ? 'Add teams and conferences, realign, update coaches, then start the new season. The final poll seeds the new preseason poll.' : 'Opens once the national champion is crowned.'}</p>` : `<p class="muted">You're viewing a past season. Switch to ${seasonLabel(L.currentYear)} at the top to start a new one.</p>`}
         <button class="btn" id="s-rebuild" ${canRebuild ? '' : 'disabled'}>Rebuild ${seasonLabel(s.year)} schedule</button>
@@ -1049,6 +1051,7 @@ export function renderSettings() {
   $('#s-city').onchange = e => { st.mcwsCity = e.target.value.trim(); changed({ progress: false }); };
   $('#s-mcws').onchange = e => { st.mcwsName = e.target.value.trim() || "Frozen Four"; changed({ progress: false }); };
   $('#s-dev').onchange = e => { st.development = e.target.value; persist(); };
+  $('#s-index').onchange = e => { st.index = e.target.value; if (s.phase === 'selection') proposeField(s); changed(); toast(`${seasonLabel(s.year)} now uses the ${indexName(s)}.`); };
   $('#s-vol').onchange = e => { st.volatility = Number(e.target.value); persist(); };
   $('#s-backfill').onclick = () => {
     if (!confirm(`Estimate shots for ${missingHE} hand-entered ${seasonLabel(s.year)} game${missingHE > 1 ? 's' : ''} that show none?`)) return;

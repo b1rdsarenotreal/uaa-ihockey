@@ -1,14 +1,14 @@
 // Season pages: home, schedule, standings, rankings and postseason.
 
-import { ctx, S, app, modal, $, $$, esc, toast, changed, persist, cache, team, teamOptions, teamNames, confLogo, confHref, confColor, confInfo, gameCard, compactCard, placeholderCard, bindGameCards, openGame, resultText, periodNote, DAY_NAMES, readableOn, teamInfo, logoImg, teamHref, seasonLabel } from './ui.js?v=20261105205818';
-import { isFinal, winnerOf, resultFor, records, rpi, rating, indexName, usesNpi, NPI_DIALS, confStandings, conferences, regSeasonChamp, regSeasonChamps, TIEBREAKERS, quadrants, quadCuts, isIndependent, INDEPENDENT } from './standings.js?v=20261105205818';
-import { latestPoll, generatePoll, pollRankMap, pollSizeOf, VOTER_PANEL, voterStyle, votersOf, addRandomVoter, removeVoter } from './polls.js?v=20261105205818';
-import { ovr } from './sim.js?v=20261105205818';
-import { simGames, addGame, weekName } from './league.js?v=20261105205818';
-import { CONF_FORMATS, confFormatName, confKind , regionalFirstRound } from './postseason.js?v=20261105205818';
-import { COMMITTEE_TIERS, gameVenue, COMMITTEE_SHORT, committeeSheet, compareTeams, mcwsVenue, postWeeks, regWeeksOf, ncaaConfig, hasSupers, noRegionals, fieldSize, wsTeams, formatSummary, shownSeed, postseasonBonus, defaultConfTourneySize, confTourneySeeds, reseedConfTourney, proposeField, lockField, pods, nodeTeams, nodeNeeded, runnerUp, committeeOrder, autoBids, refLabel, setConfFormat, ensureLayout, confHost, setConfHost, mcwsHistory, selectionBoard, setAtLarge, confirmField, unconfirmField, bracketology, BRACKETOLOGY_FROM_WEEK } from './postseason.js?v=20261105205818';
-import { fmtPct, hashStr } from './util.js?v=20261105205818';
-import { DAY_ORDER, CONF_WEEKENDS, applyConfWeekend } from './schedule.js?v=20261105205818';
+import { ctx, S, app, modal, $, $$, esc, toast, changed, persist, cache, team, teamOptions, teamNames, confLogo, confHref, confColor, confInfo, gameCard, compactCard, placeholderCard, bindGameCards, openGame, resultText, periodNote, DAY_NAMES, readableOn, teamInfo, logoImg, teamHref, seasonLabel } from './ui.js?v=20261105211017';
+import { isFinal, winnerOf, resultFor, records, rpi, rating, indexName, usesNpi, NPI_DIALS, confStandings, conferences, regSeasonChamp, regSeasonChamps, TIEBREAKERS, quadrants, quadCuts, isIndependent, INDEPENDENT } from './standings.js?v=20261105211017';
+import { latestPoll, generatePoll, pollRankMap, pollSizeOf, VOTER_PANEL, voterStyle, votersOf, addRandomVoter, removeVoter } from './polls.js?v=20261105211017';
+import { ovr } from './sim.js?v=20261105211017';
+import { simGames, addGame, weekName } from './league.js?v=20261105211017';
+import { CONF_FORMATS, confFormatName, confKind , regionalFirstRound } from './postseason.js?v=20261105211017';
+import { COMMITTEE_TIERS, gameVenue, COMMITTEE_SHORT, committeeSheet, compareTeams, mcwsVenue, postWeeks, regWeeksOf, ncaaConfig, hasSupers, noRegionals, fieldSize, wsTeams, formatSummary, shownSeed, postseasonBonus, defaultConfTourneySize, confTourneySeeds, reseedConfTourney, proposeField, lockField, pods, nodeTeams, nodeNeeded, runnerUp, committeeOrder, autoBids, refLabel, setConfFormat, ensureLayout, confHost, setConfHost, mcwsHistory, selectionBoard, setAtLarge, confirmField, unconfirmField, bracketology, BRACKETOLOGY_FROM_WEEK } from './postseason.js?v=20261105211017';
+import { fmtPct, hashStr } from './util.js?v=20261105211017';
+import { DAY_ORDER, CONF_WEEKENDS, applyConfWeekend } from './schedule.js?v=20261105211017';
 
 // " at Lynah Rink, Ithaca, N.Y." for a host school with a home rink.
 const atField = (s, school) => { const t = s.teams[school]; const f = [t?.stadium, t?.city].filter(Boolean).join(', '); return f ? ` at ${esc(f)}` : ''; };
@@ -486,7 +486,7 @@ function renderBracketology(root) {
   const autoSet = new Set(Object.values(B.autos).filter(Boolean));
   const asOf = s.phase === 'regular' ? `after Week ${doneThrough}` : 'today';
   const row = (t, k) => `<div class="bo-row"><span class="bo-seed">${k + 1}</span><span class="bo-team">${team(t, { rank: false, size: 16 })}</span><span>${autoSet.has(t) ? '<span class="badge real" title="Projected automatic bid">AQ</span>' : ''}</span>
-    <span class="bo-conf" title="${esc(s.teams[t].conference)}">${confLogo(s.teams[t].conference, 16)}</span><span class="bo-num">${recs[t].w}-${recs[t].l}-${recs[t].t || 0}</span><span class="bo-num muted" title="${indexName(s)} rank">${r[t]?.rank ? `RPI ${r[t].rank}` : ''}</span></div>`;
+    <span class="bo-conf" title="${esc(s.teams[t].conference)}">${confLogo(s.teams[t].conference, 16)}</span><span class="bo-num">${recs[t].w}-${recs[t].l}-${recs[t].t || 0}</span><span class="bo-num muted" title="${indexName(s)} rank">${r[t]?.rank ? `${indexName(s)} ${r[t].rank}` : ''}</span></div>`;
   const regionals = noRegionals(B.cfg) ? `<div class="card bo-reg"><div class="bo-head"><h3>${esc(s.settings.mcwsName)}</h3><span class="muted small">Single elimination, seeds 1–${B.field.length}</span></div>${B.field.map(f => f.team).map(row).join('')}</div>` : B.regionals.map(teams => `<div class="card bo-reg"><div class="bo-head"><h3>${esc(teams[0])} Region</h3><span class="muted small">National seed ${seedOf[teams[0]]}</span></div>${teams.map(row).join('')}</div>`).join('');
   const list = (title, teams, note) => `<div class="bo-list"><h3>${title}</h3>${teams.length ? `<ol>${teams.map(t => `<li>${team(t, { rank: false, size: 16 })} <span class="muted small">${recs[t].w}-${recs[t].l}-${recs[t].t || 0} · ${indexName(s)} ${r[t]?.rank ?? '–'}</span></li>`).join('')}</ol>` : '<p class="muted small">—</p>'}${note ? `<p class="small muted">${note}</p>` : ''}</div>`;
   const autoList = Object.entries(B.autos).filter(([, t]) => t).sort((a, b) => a[0].localeCompare(b[0]));
@@ -852,7 +852,7 @@ function renderField(root) {
   const s = S(), p = s.post || {};
   if (!p.field) {
     const cfg = ncaaConfig(s);
-    root.innerHTML = `<div class="empty">The ${fieldSize(cfg)}-team National Tournament field is chosen once every conference tournament is finished. It has ${Object.keys(ctx.league.conferences).length ? 'one automatic bid per conference (the tournament champion, or the regular-season champion where there is no tournament)' : 'automatic bids'}, and the rest are at-large picks. The committee compares teams two at a time (Tier 1: RPI, Q1 wins, Q4 losses; Tier 2: strength of schedule, head-to-head, Q2 wins, overall W-L; Tier 3: automatic bid, regular-season title, Q3 losses, Q1 and Q2 win percentages) as a starting point; you pick the at-large teams and set the seeds.<br><br>${formatSummary(cfg)} <a href="#/settings">Change the format in Settings.</a></div>`;
+    root.innerHTML = `<div class="empty">The ${fieldSize(cfg)}-team National Tournament field is chosen once every conference tournament is finished. It has ${Object.keys(ctx.league.conferences).length ? 'one automatic bid per conference (the tournament champion, or the regular-season champion where there is no tournament)' : 'automatic bids'}, and the rest are at-large picks. ${usesNpi(S()) ? 'The committee goes straight down the NPI' : 'The committee compares teams two at a time (Tier 1: RPI, Q1 wins, Q4 losses; Tier 2: strength of schedule, head-to-head, Q2 wins, overall W-L; Tier 3: automatic bid, regular-season title, Q3 losses, Q1 and Q2 win percentages)'} as a starting point; you pick the at-large teams and set the seeds.<br><br>${formatSummary(cfg)} <a href="#/settings">Change the format in Settings.</a></div>`;
     return;
   }
   const r = rating(s), pr = cache.ranks(), recs = cache.recs(), Q = quadrants(s, r), sheet = committeeSheet(s);

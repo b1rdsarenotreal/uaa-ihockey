@@ -14,7 +14,7 @@
 // `innings` is the number of periods played. A simulation is only a
 // suggestion — the commissioner reviews and saves it.
 
-import { rng as makeRng } from './util.js?v=20261105205818';
+import { rng as makeRng } from './util.js?v=20261105211017';
 
 export const OVR_WEIGHTS = { off: 0.4, pit: 0.3, def: 0.3 };
 const ovrExact = t => t.off * OVR_WEIGHTS.off + t.pit * OVR_WEIGHTS.pit + t.def * OVR_WEIGHTS.def;

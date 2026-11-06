@@ -1,14 +1,14 @@
 // Season pages: home, schedule, standings, rankings and postseason.
 
-import { ctx, S, app, modal, $, $$, esc, toast, changed, persist, cache, team, teamOptions, teamNames, confLogo, confHref, confColor, confInfo, gameCard, compactCard, placeholderCard, bindGameCards, openGame, resultText, periodNote, DAY_NAMES, readableOn, teamInfo, logoImg, teamHref, seasonLabel } from './ui.js?v=20261104005656';
-import { isFinal, winnerOf, resultFor, records, rpi, confStandings, conferences, regSeasonChamp, regSeasonChamps, TIEBREAKERS, quadrants, quadCuts, isIndependent, INDEPENDENT } from './standings.js?v=20261104005656';
-import { latestPoll, generatePoll, pollRankMap, pollSizeOf, VOTER_PANEL, voterStyle, votersOf, addRandomVoter, removeVoter } from './polls.js?v=20261104005656';
-import { ovr } from './sim.js?v=20261104005656';
-import { simGames, addGame, weekName } from './league.js?v=20261104005656';
-import { CONF_FORMATS, confFormatName, confKind } from './postseason.js?v=20261104005656';
-import { COMMITTEE_TIERS, COMMITTEE_SHORT, committeeSheet, compareTeams, mcwsVenue, postWeeks, regWeeksOf, ncaaConfig, hasSupers, noRegionals, fieldSize, wsTeams, formatSummary, shownSeed, postseasonBonus, defaultConfTourneySize, confTourneySeeds, reseedConfTourney, proposeField, lockField, pods, nodeTeams, nodeNeeded, runnerUp, committeeOrder, autoBids, refLabel, setConfFormat, ensureLayout, confHost, setConfHost, mcwsHistory, selectionBoard, setAtLarge, confirmField, unconfirmField, bracketology, BRACKETOLOGY_FROM_WEEK } from './postseason.js?v=20261104005656';
-import { fmtPct, hashStr } from './util.js?v=20261104005656';
-import { DAY_ORDER, CONF_WEEKENDS, applyConfWeekend } from './schedule.js?v=20261104005656';
+import { ctx, S, app, modal, $, $$, esc, toast, changed, persist, cache, team, teamOptions, teamNames, confLogo, confHref, confColor, confInfo, gameCard, compactCard, placeholderCard, bindGameCards, openGame, resultText, periodNote, DAY_NAMES, readableOn, teamInfo, logoImg, teamHref, seasonLabel } from './ui.js?v=20261105174037';
+import { isFinal, winnerOf, resultFor, records, rpi, confStandings, conferences, regSeasonChamp, regSeasonChamps, TIEBREAKERS, quadrants, quadCuts, isIndependent, INDEPENDENT } from './standings.js?v=20261105174037';
+import { latestPoll, generatePoll, pollRankMap, pollSizeOf, VOTER_PANEL, voterStyle, votersOf, addRandomVoter, removeVoter } from './polls.js?v=20261105174037';
+import { ovr } from './sim.js?v=20261105174037';
+import { simGames, addGame, weekName } from './league.js?v=20261105174037';
+import { CONF_FORMATS, confFormatName, confKind , regionalFirstRound } from './postseason.js?v=20261105174037';
+import { COMMITTEE_TIERS, COMMITTEE_SHORT, committeeSheet, compareTeams, mcwsVenue, postWeeks, regWeeksOf, ncaaConfig, hasSupers, noRegionals, fieldSize, wsTeams, formatSummary, shownSeed, postseasonBonus, defaultConfTourneySize, confTourneySeeds, reseedConfTourney, proposeField, lockField, pods, nodeTeams, nodeNeeded, runnerUp, committeeOrder, autoBids, refLabel, setConfFormat, ensureLayout, confHost, setConfHost, mcwsHistory, selectionBoard, setAtLarge, confirmField, unconfirmField, bracketology, BRACKETOLOGY_FROM_WEEK } from './postseason.js?v=20261105174037';
+import { fmtPct, hashStr } from './util.js?v=20261105174037';
+import { DAY_ORDER, CONF_WEEKENDS, applyConfWeekend } from './schedule.js?v=20261105174037';
 
 // " at Lynah Rink, Ithaca, N.Y." for a host school with a home rink.
 const atField = (s, school) => { const t = s.teams[school]; const f = [t?.stadium, t?.city].filter(Boolean).join(', '); return f ? ` at ${esc(f)}` : ''; };
@@ -929,10 +929,14 @@ function regionalPreview(s, field, podList, r) {
     const d = strengths[i] - all;
     return `<div class="reg-prev${dupes.length ? ' clash' : ''}">
       <div class="reg-prev-head"><span class="reg-prev-title">${esc(teams[0])} Region</span><span class="reg-prev-ovr" title="Average OVR of the region's teams, compared with the whole field">OVR ${strengths[i].toFixed(1)} <span class="${d >= 0 ? 'up' : 'down'}">${d >= 0 ? '+' : '−'}${Math.abs(d).toFixed(1)}</span></span></div>
-      ${teams.map((t, k) => { const c = s.teams[t].conference, dup = confs[c].length > 1; return `<div class="reg-prev-row${dup ? ' dup' : ''}">
-        <span class="reg-prev-seed">${k + 1}</span><span class="reg-prev-team">${team(t, { rank: false, size: 16 })}</span>
+      ${(() => {
+        const row = k => { if (k == null) return '<div class="reg-prev-row bye"><span class="reg-prev-seed"></span><span class="reg-prev-team muted">Bye</span></div>'; const t = teams[k - 1], c = s.teams[t].conference, dup = confs[c].length > 1; return `<div class="reg-prev-row${dup ? ' dup' : ''}">
+        <span class="reg-prev-seed">${k}</span><span class="reg-prev-team">${team(t, { rank: false, size: 16 })}</span>
         <span class="reg-prev-conf" title="${esc(c)}">${confLogo(c, 18)}${confInfo(c).logo ? `<span>${esc(confInfo(c).abbr || c)}</span>` : ''}</span>
-        <span class="reg-prev-num" title="National seed · RPI rank">#${seedOf(t)} · ${r[t]?.rank ?? '–'}</span></div>`; }).join('')}
+        <span class="reg-prev-num" title="National seed · RPI rank">#${seedOf(t)} · ${r[t]?.rank ?? '–'}</span></div>`; };
+        // More than 5 teams: the first-round matchups (byes too); otherwise the teams in seed order.
+        return teams.length > 5 ? `<div class="reg-prev-sub">First round</div>${regionalFirstRound(teams.length).map(pair => `<div class="reg-prev-pair">${pair.map(row).join('')}</div>`).join('')}` : teams.map((_, k) => row(k + 1)).join('');
+      })()}
       ${dupes.length ? `<div class="reg-prev-warn">⚠ Same conference: ${dupes.map(([c, l]) => `${esc(c)} (${l.length})`).join(', ')}</div>` : ''}
     </div>`;
   }).join('');

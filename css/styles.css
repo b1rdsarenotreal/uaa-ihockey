@@ -920,3 +920,10 @@ button.bx-sg:hover { border-color: var(--muted); }
 .bg-n.bg-r { white-space: nowrap; }
 .bk .bg-row { grid-template-columns: minmax(0, 1fr) minmax(30px, auto); }
 .side-switch[hidden] { display: none; }
+
+/* First-round matchups in the regional preview (regionals of more than 5) */
+.reg-prev-sub { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 2px 0 4px; }
+.reg-prev-pair { border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.reg-prev-pair + .reg-prev-pair { margin-top: 6px; }
+.reg-prev-pair .reg-prev-row + .reg-prev-row { border-top: 1px dotted var(--line); }
+.reg-prev-row.bye .reg-prev-team { font-style: italic; }

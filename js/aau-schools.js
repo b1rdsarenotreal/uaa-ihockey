@@ -1,4 +1,4 @@
-import { CONF_LOGO_LINKS } from './data.js?v=20261104005656';
+import { CONF_LOGO_LINKS } from './data.js?v=20261105174037';
 
 // Every AAU member school (73), for the "AAU school" pick on the Add team
 // form: abbreviation, mascot, colors, city and the conference it plays in

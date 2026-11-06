@@ -1,6 +1,6 @@
 // Records, conference standings with tiebreakers, the RPI and the NPI.
 
-import { pct, hashStr } from './util.js?v=20261105211017';
+import { pct, hashStr } from './util.js?v=20261105230025';
 
 export const isFinal = g => g.final && g.homeR != null && g.awayR != null;
 // A regular-season game still tied after its 5-minute overtime is a tie: a
@@ -136,10 +136,15 @@ export function npi(season, filter = null, dials = { ...NPI_DIALS, ...(season.se
     }
   }
   let val = Object.fromEntries(teams.map(t => [t, 50]));
+  // The quality-win bonus is figured from the opponents' base NPI (worked
+  // out without bonuses), added once at the end: fed back into the
+  // iteration, a bonus worth half of every point above the base on top of
+  // the SOS share can grow without bound in a small league.
+  let bonus = 0;
   const sum = (gs, v) => {
     let num = 0, den = 0;
     for (const x of gs) {
-      const opp = v[x.o] ?? 50, qwb = opp > D.qwbBase ? (opp - D.qwbBase) * D.qwbMult : 0;
+      const opp = v[x.o] ?? 50, qwb = opp > D.qwbBase ? (opp - D.qwbBase) * D.qwbMult * bonus : 0;
       num += x.w * x.ww * (D.win + sosW * opp + qwb) + (1 - x.w) * x.lw * sosW * opp;
       den += x.w * x.ww + (1 - x.w) * x.lw;
     }
@@ -150,7 +155,7 @@ export function npi(season, filter = null, dials = { ...NPI_DIALS, ...(season.se
     if (!gs.length) return { value: 50, kept: [] };
     // Wins can be dropped; everything else stays. Keep the best minWins
     // wins, then add the rest from best to worst while they raise the NPI.
-    const wins = gs.filter(x => x.res === 'W').map(x => ({ x, v: D.win + sosW * (v[x.o] ?? 50) + Math.max(0, ((v[x.o] ?? 50) - D.qwbBase) * D.qwbMult) }))
+    const wins = gs.filter(x => x.res === 'W').map(x => ({ x, v: D.win + sosW * (v[x.o] ?? 50) + Math.max(0, ((v[x.o] ?? 50) - D.qwbBase) * D.qwbMult * bonus) }))
       .sort((a, b) => b.v - a.v);
     const kept = gs.filter(x => x.res !== 'W');
     let k = 0;
@@ -169,11 +174,12 @@ export function npi(season, filter = null, dials = { ...NPI_DIALS, ...(season.se
     val = next;
     if (diff < 1e-6) break;
   }
+  bonus = 1;
   const out = {};
   for (const t of teams) {
     const { value, kept } = solve(t, val);
     const n = kept.length, w = kept.reduce((s, x) => s + x.w, 0);
-    const qwb = kept.reduce((s, x) => s + (x.w && val[x.o] > D.qwbBase ? x.w * (val[x.o] - D.qwbBase) * D.qwbMult : 0), 0);
+    const qwb = kept.reduce((s, x) => s + (x.w && val[x.o] > D.qwbBase ? x.w * (val[x.o] - D.qwbBase) * D.qwbMult * bonus : 0), 0);
     const adj = { w: kept.filter(x => x.res === 'W').length, l: kept.filter(x => x.res === 'L').length, t: kept.filter(x => x.res === 'T').length };
     out[t] = {
       npi: value, rpi: value, wp: n ? w / n : 0, sos: n ? kept.reduce((s, x) => s + val[x.o], 0) / n : 0, qwb,

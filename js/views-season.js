@@ -1,14 +1,14 @@
 // Season pages: home, schedule, standings, rankings and postseason.
 
-import { ctx, S, app, modal, $, $$, esc, toast, changed, persist, cache, team, teamOptions, teamNames, confLogo, confHref, confColor, confInfo, gameCard, compactCard, placeholderCard, bindGameCards, openGame, resultText, periodNote, DAY_NAMES, readableOn, teamInfo, logoImg, teamHref, seasonLabel } from './ui.js?v=20261105211017';
-import { isFinal, winnerOf, resultFor, records, rpi, rating, indexName, usesNpi, NPI_DIALS, confStandings, conferences, regSeasonChamp, regSeasonChamps, TIEBREAKERS, quadrants, quadCuts, isIndependent, INDEPENDENT } from './standings.js?v=20261105211017';
-import { latestPoll, generatePoll, pollRankMap, pollSizeOf, VOTER_PANEL, voterStyle, votersOf, addRandomVoter, removeVoter } from './polls.js?v=20261105211017';
-import { ovr } from './sim.js?v=20261105211017';
-import { simGames, addGame, weekName } from './league.js?v=20261105211017';
-import { CONF_FORMATS, confFormatName, confKind , regionalFirstRound } from './postseason.js?v=20261105211017';
-import { COMMITTEE_TIERS, gameVenue, COMMITTEE_SHORT, committeeSheet, compareTeams, mcwsVenue, postWeeks, regWeeksOf, ncaaConfig, hasSupers, noRegionals, fieldSize, wsTeams, formatSummary, shownSeed, postseasonBonus, defaultConfTourneySize, confTourneySeeds, reseedConfTourney, proposeField, lockField, pods, nodeTeams, nodeNeeded, runnerUp, committeeOrder, autoBids, refLabel, setConfFormat, ensureLayout, confHost, setConfHost, mcwsHistory, selectionBoard, setAtLarge, confirmField, unconfirmField, bracketology, BRACKETOLOGY_FROM_WEEK } from './postseason.js?v=20261105211017';
-import { fmtPct, hashStr } from './util.js?v=20261105211017';
-import { DAY_ORDER, CONF_WEEKENDS, applyConfWeekend } from './schedule.js?v=20261105211017';
+import { ctx, S, app, modal, $, $$, esc, toast, changed, persist, cache, team, teamOptions, teamNames, confLogo, confHref, confColor, confInfo, gameCard, compactCard, placeholderCard, bindGameCards, openGame, resultText, periodNote, DAY_NAMES, readableOn, teamInfo, logoImg, teamHref, seasonLabel } from './ui.js?v=20261105230025';
+import { isFinal, winnerOf, resultFor, records, rpi, rating, indexName, usesNpi, NPI_DIALS, confStandings, conferences, regSeasonChamp, regSeasonChamps, TIEBREAKERS, quadrants, quadCuts, isIndependent, INDEPENDENT } from './standings.js?v=20261105230025';
+import { latestPoll, generatePoll, pollRankMap, pollSizeOf, VOTER_PANEL, voterStyle, votersOf, addRandomVoter, removeVoter } from './polls.js?v=20261105230025';
+import { ovr } from './sim.js?v=20261105230025';
+import { simGames, addGame, weekName } from './league.js?v=20261105230025';
+import { CONF_FORMATS, confFormatName, confKind , regionalFirstRound } from './postseason.js?v=20261105230025';
+import { COMMITTEE_TIERS, gameVenue, COMMITTEE_SHORT, committeeSheet, compareTeams, mcwsVenue, postWeeks, regWeeksOf, ncaaConfig, hasSupers, noRegionals, fieldSize, wsTeams, formatSummary, shownSeed, postseasonBonus, defaultConfTourneySize, confTourneySeeds, reseedConfTourney, proposeField, lockField, pods, nodeTeams, nodeNeeded, runnerUp, committeeOrder, autoBids, refLabel, setConfFormat, ensureLayout, confHost, setConfHost, mcwsHistory, selectionBoard, setAtLarge, confirmField, unconfirmField, bracketology, BRACKETOLOGY_FROM_WEEK } from './postseason.js?v=20261105230025';
+import { fmtPct, hashStr } from './util.js?v=20261105230025';
+import { DAY_ORDER, CONF_WEEKENDS, applyConfWeekend } from './schedule.js?v=20261105230025';
 
 // " at Lynah Rink, Ithaca, N.Y." for a host school with a home rink.
 const atField = (s, school) => { const t = s.teams[school]; const f = [t?.stadium, t?.city].filter(Boolean).join(', '); return f ? ` at ${esc(f)}` : ''; };
@@ -525,7 +525,7 @@ function renderNpiTab(root) {
     <thead><tr><th class="num">NPI</th><th>Team</th><th>Conf</th><th class="num">Record</th><th class="num" title="The record the NPI counts, after dropping wins that would lower it">NPI record</th><th class="num" title="Winning percentage of the NPI record (a regular-season overtime win counts 0.67)">Win %</th><th class="num" title="Average NPI of the opponents in the NPI record">SOS</th><th class="num" title="Quality-win bonus points">QWB</th><th class="num">Rating</th><th class="num">SOS rk</th><th class="num">Poll</th>${QHEAD}</tr></thead>
     <tbody>${teams.map(t => `<tr><td class="num"><b>${r[t].rank}</b></td><td>${team(t, { rank: false })}</td><td>${confLogo(s.teams[t].conference, 18)}</td><td class="num">${recs[t].w}-${recs[t].l}-${recs[t].t || 0}</td>
       <td class="num${r[t].dropped ? '' : ' muted'}">${adj(t)}</td><td class="num">${fmtPct(r[t].wp)}</td><td class="num">${r[t].sos.toFixed(2)}</td><td class="num">${r[t].qwb.toFixed(2)}</td><td class="num"><b>${r[t].npi.toFixed(3)}</b></td><td class="num muted">${r[t].sosRank ?? ''}</td><td class="num muted">${pr[t] ?? ''}</td>${[0, 1, 2, 3].map(i => qc(t, i)).join('')}</tr>`).join('') || '<tr><td colspan="15" class="muted">The NPI starts once games are played.</td></tr>'}</tbody></table></div>
-    <p class="small muted">The Power Index (NPI), with the dials used for college ice hockey: each game is worth ${D.win} for a win plus ${D.sos}% of the opponent's NPI, plus a quality-win bonus of (opponent's NPI − ${D.qwbBase}) × ${D.qwbMult} for a win over a team above ${D.qwbBase.toFixed(2)}; a loss is worth ${D.sos}% of the opponent's NPI. Away wins and home losses weigh ${D.away}, home wins and away losses ${D.home}. A regular-season overtime win counts ${D.otWin} of a win (${(1 - D.otWin).toFixed(2)} of a loss); in the postseason an overtime win is a full win. A tie is half of each. A team's NPI is the average of its games, and it keeps at least ${D.minWins} wins, dropping any others that would lower its NPI (the NPI record). Every team starts at 50 and the NPIs are worked out again until they settle. The committee picks the at-large teams and seeds the field in NPI order. ${quadText(Object.keys(s.teams).length)}</p></div>`;
+    <p class="small muted">The Power Index (NPI), with the dials used for college ice hockey: each game is worth ${D.win} for a win plus ${D.sos}% of the opponent's NPI, plus a quality-win bonus of (opponent's NPI − ${D.qwbBase}) × ${D.qwbMult} for a win over a team above ${D.qwbBase.toFixed(2)}; a loss is worth ${D.sos}% of the opponent's NPI. Away wins and home losses weigh ${D.away}, home wins and away losses ${D.home}. A regular-season overtime win counts ${D.otWin} of a win (${(1 - D.otWin).toFixed(2)} of a loss); in the postseason an overtime win is a full win. A tie is half of each. A team's NPI is the average of its games, and it keeps at least ${D.minWins} wins, dropping any others that would lower its NPI (the NPI record). Every team starts at 50 and the NPIs are worked out again until they settle; the quality-win bonuses are then added, figured from the opponents' NPIs without bonuses. The committee picks the at-large teams and seeds the field in NPI order. ${quadText(Object.keys(s.teams).length)}</p></div>`;
 }
 
 function renderSosTab(root) {
@@ -574,8 +574,10 @@ function eventBracket(ev, seedFn, { stack = false, colw = BK.COLW } = {}) {
   const secOf = n => n.sec || 'W';
   const kids = n => [n.a, n.b].filter(r => r && r.w && byKey[r.w] && secOf(byKey[r.w]) === secOf(n)).map(r => byKey[r.w]);
   const pos = {};
-  // Elimination-bracket "games" against a bye never happen; leave them out.
-  const hidden = new Set(ev.nodes.filter(n => secOf(n) === 'L' && nodeTeams(ev, n).includes('BYE')).map(n => n.key));
+  // "Games" against a bye never happen; leave them out (the owner's rule,
+  // Nov. 2026): a team with a bye starts in the next round, next to an
+  // empty slot.
+  const hidden = new Set(ev.nodes.filter(n => nodeTeams(ev, n).includes('BYE')).map(n => n.key));
   const sections = ['W', 'L'].filter(sec => ev.nodes.some(n => secOf(n) === sec));
   const double = sections.includes('L');
   let top = 0, maxCol = 0;

@@ -934,3 +934,9 @@ button.bx-sg:hover { border-color: var(--muted); }
 .bo-pair .bo-row { border-bottom: 0; }
 .bo-pair .bo-row + .bo-row { border-top: 1px dotted var(--line); }
 .bo-row.bye .bo-team { font-style: italic; }
+
+/* Selection: seed lines (all 1 seeds, all 2 seeds…) */
+.seed-table tr.seed-line td { background: color-mix(in srgb, var(--accent, #1d4ed8) 7%, transparent); border-top: 2px solid var(--line); padding: 6px 8px; font-size: 13px; }
+.seed-table tr.seed-line:first-child td { border-top: 0; }
+.seed-table td.seed-reg { white-space: nowrap; font-size: 12.5px; }
+.seed-table td.seed-reg img { vertical-align: middle; }

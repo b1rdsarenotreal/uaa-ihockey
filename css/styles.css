@@ -23,6 +23,7 @@ a { color: var(--accent); }
   padding: 10px 24px 0; background: var(--board); color: var(--board-ink); box-shadow: inset 0 -1px 0 rgba(255,255,255,.06); }
 .brand { display: inline-flex; align-items: center; gap: 10px; font: 800 24px/1 var(--display); letter-spacing: .01em; padding-bottom: 10px; }
 .brand-mark { width: 26px; height: 26px; flex: none; }
+.brand .aau-mark { margin-right: -4px; } /* the AAU mark, then the sport's own icon */
 .side-switch { display: inline-flex; gap: 2px; padding: 3px; border-radius: 999px; background: rgba(255,255,255,.12); margin: 0 0 10px; }
 .side-switch button { border: 0; background: transparent; color: rgba(255,255,255,.75); font: 700 13px/1 var(--body); padding: 7px 12px; border-radius: 999px; cursor: pointer; }
 .side-switch button:hover { color: #fff; }

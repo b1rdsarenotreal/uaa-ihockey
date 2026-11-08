@@ -1,6 +1,6 @@
 // Records, conference standings with tiebreakers, the RPI and the NPI.
 
-import { pct, hashStr } from './util.js?v=20261107172305';
+import { pct, hashStr } from './util.js?v=20261107205925';
 
 export const isFinal = g => g.final && g.homeR != null && g.awayR != null;
 // A regular-season game still tied after its 5-minute overtime is a tie: a

@@ -13,8 +13,8 @@
 // settings, so they carry into later seasons), remove added voters, and
 // edit any published poll.
 
-import { rng, normal, hashStr, clamp } from './util.js?v=20261110235151';
-import { records, rpi, rating, indexName, usesNpi, isFinal, winnerOf, isTie } from './standings.js?v=20261110235151';
+import { rng, normal, hashStr, clamp } from './util.js?v=20261111000420';
+import { records, rpi, rating, indexName, usesNpi, isFinal, winnerOf, isTie } from './standings.js?v=20261111000420';
 
 export const DEFAULT_POLL_SIZE = 15;
 export const POLL_SIZES = [10, 15, 20, 25];
@@ -203,8 +203,11 @@ function pollInputs(season, week) {
   const zR = zmap(Object.fromEntries(teams.map(t => [t, r[t].rpi])));
   const zS = zmap(Object.fromEntries(teams.map(t => [t, r[t].sos || 0])));
   const played = teams.reduce((n, t) => n + recs[t].w + recs[t].l + (recs[t].t || 0), 0) / (teams.length || 1);
-  // Strength carries most of the weight early, résumé more as games are played.
-  const strengthW = Math.max(0.35, 0.7 - played * 0.015);
+  // Team rating carries most of the weight in the preseason and the first
+  // weeks (85%), fading as the season goes on to 20% at its end; the résumé
+  // takes the rest.
+  const progress = played / seasonLength(season);
+  const strengthW = clamp(0.85 - 0.65 * progress, 0.2, 0.85);
   return { teams, recs, r, power, res, zP, zQ, zR, zS, played, strengthW };
 }
 
@@ -217,24 +220,28 @@ export function teamScores(season, week, { postBonus = null } = {}) {
 }
 
 // Losing records. Voters mark a team down for a record under about .600,
-// more as the season goes on, and once a team has played about a fifth of
+// hardly at all in the first weeks and fully from 40% of the season on, and once a team has played about a fifth of
 // its season (`recordGate`), one with a losing record goes to the bottom of
 // every ballot: it's ranked only when there aren't enough teams at .500 or
 // better to fill the poll (a sport with few teams).
 const RECORD_PENALTY = 4, RECORD_PAR = 0.6;
 const pctOf = r => { const n = r.w + r.l + (r.t || 0); return n ? (r.w + (r.t || 0) / 2) / n : 0.5; };
-function recordGate(season) {
+// Regular-season games per team (the schedule's average).
+export function seasonLength(season) {
   const n = {};
   for (const g of season.games) if (g.type === 'regular') { n[g.home] = (n[g.home] || 0) + 1; n[g.away] = (n[g.away] || 0) + 1; }
   const v = Object.values(n);
-  return Math.max(5, Math.round(0.2 * (v.length ? v.reduce((a, b) => a + b, 0) / v.length : 25)));
+  return v.length ? v.reduce((a, b) => a + b, 0) / v.length : 25;
 }
+const recordGate = season => Math.max(5, Math.round(0.2 * seasonLength(season)));
 export function recordRules(season, recs) {
-  const gate = recordGate(season);
+  const gate = recordGate(season), len = seasonLength(season);
   const penalty = {}, barred = new Set();
   for (const [t, r] of Object.entries(recs)) {
     const n = r.w + r.l + (r.t || 0), pct = pctOf(r);
-    penalty[t] = Math.min(1, n / gate) * RECORD_PENALTY * Math.max(0, RECORD_PAR - pct);
+    // Barely anything after a week or two (a top team swept by another good
+    // team stays ranked); the full mark-down from 40% of the season on.
+    penalty[t] = Math.min(1, n / len / 0.4) ** 2 * RECORD_PENALTY * Math.max(0, RECORD_PAR - pct);
     if (n >= gate && pct < 0.5) barred.add(t);
   }
   return { penalty, barred };

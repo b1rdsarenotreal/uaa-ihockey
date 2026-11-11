@@ -8,13 +8,16 @@
 // leans a little according to a built-in personality: some trust talent,
 // some trust numbers, some punish bad losses, some watch one conference
 // closely. The leans are small, so the poll stays close to a consensus.
+// Each week also counts on its own: what the week's results did to a
+// résumé, and head to head (a ranked team that beats a ranked team a few
+// spots above it goes above it).
 // The 23 built-in personalities live here in the code. The commissioner can
 // add more voters, each with a random personality (stored in the season's
 // settings, so they carry into later seasons), remove added voters, and
 // edit any published poll.
 
-import { rng, normal, hashStr, clamp } from './util.js?v=20261111000420';
-import { records, rpi, rating, indexName, usesNpi, isFinal, winnerOf, isTie } from './standings.js?v=20261111000420';
+import { rng, normal, hashStr, clamp } from './util.js?v=20261111124340';
+import { records, rpi, rating, indexName, usesNpi, isFinal, winnerOf, isTie } from './standings.js?v=20261111124340';
 
 export const DEFAULT_POLL_SIZE = 15;
 export const POLL_SIZES = [10, 15, 20, 25];
@@ -270,6 +273,17 @@ export function generatePoll(season, week, { final = false, postBonus = null } =
     }
   }
   const zWeek = zmap(weekNet);
+  // What this week did to each résumé (a big win moves a team, a bad week
+  // costs it), which every voter weighs, not just the season totals.
+  let zDelta = null;
+  if (!final && week > 0) {
+    const before = resumeScores(season, inp.power, g => g.week <= week - 1);
+    zDelta = zmap(Object.fromEntries(teams.map(t => [t, inp.res[t] - before[t]])));
+  }
+  // Head to head: a ranked team that won this week's meeting (more wins than
+  // losses against that team) with a ranked team at most H2H_GAP spots above
+  // it goes above that team on every ballot.
+  const h2h = headToHead(season, week, prevRank, final);
   const weekW = {}, weekL = {};
   if (!final && week > 0) for (const g of season.games) {
     if (g.week !== week || !isFinal(g) || isTie(g)) continue;
@@ -292,6 +306,7 @@ export function generatePoll(season, week, { final = false, postBonus = null } =
       // Voters remember last week's poll a little (loyal ones more).
       if (prevRank[t]) sc += INERTIA * v.loyalty * (prevSize + 1 - prevRank[t]) / prevSize;
       sc += v.recency * zWeek[t];
+      if (zDelta) sc += (WEEK_WEIGHT + v.recency) * zDelta[t];
       sc -= v.losses * badLosses[t];
       if (vconf && season.teams[t].conference === vconf) sc += v.regionBoost;
       sc += postBonus?.[t] || 0;
@@ -300,7 +315,7 @@ export function generatePoll(season, week, { final = false, postBonus = null } =
       return [t, sc];
     }).sort((a, b) => b[1] - a[1]).map(x => x[0]);
     // No voter moves a ranked team up after a losing week.
-    const ballot = holdLosers(full, prevRank, weekW, weekL);
+    const ballot = holdLosers(applyHeadToHead(full, h2h), prevRank, weekW, weekL);
     // Losing records last (they still fill the poll in a small sport).
     ballot.sort((a, b) => barred.has(a) - barred.has(b));
     ballot.splice(size);
@@ -325,6 +340,34 @@ export function generatePoll(season, week, { final = false, postBonus = null } =
     ranks: order.slice(0, size).map(t => ({ team: t, pts: pts[t], fp: fp[t] || 0, record: rec(t) })),
     others: order.slice(size).filter(t => pts[t] > 0).map(t => ({ team: t, pts: pts[t], record: rec(t) })),
   };
+}
+
+const WEEK_WEIGHT = 0.15, H2H_GAP = 6;
+function headToHead(season, week, prevRank, final) {
+  if (final || week <= 0) return [];
+  const pair = {};
+  for (const g of season.games) {
+    if (g.week !== week || !isFinal(g) || !prevRank[g.home] || !prevRank[g.away]) continue;
+    const w = winnerOf(g);
+    if (!w) continue;
+    const [a, b] = [g.home, g.away].sort(), k = `${a}|${b}`;
+    (pair[k] ||= { a, b, n: 0 }).n += w === a ? 1 : -1;
+  }
+  const out = [];
+  for (const { a, b, n } of Object.values(pair)) {
+    if (!n) continue;
+    const [win, lose] = n > 0 ? [a, b] : [b, a];
+    if (prevRank[win] > prevRank[lose] && prevRank[win] - prevRank[lose] <= H2H_GAP) out.push([win, lose]);
+  }
+  return out;
+}
+function applyHeadToHead(order, pairs) {
+  const list = [...order];
+  for (const [win, lose] of pairs) {
+    const i = list.indexOf(win), j = list.indexOf(lose);
+    if (i > j && j >= 0) { list.splice(i, 1); list.splice(j, 0, win); }
+  }
+  return list;
 }
 
 // A team ranked last week that lost more games than it won this week can't

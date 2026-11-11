@@ -13,8 +13,8 @@
 // settings, so they carry into later seasons), remove added voters, and
 // edit any published poll.
 
-import { rng, normal, hashStr, clamp } from './util.js?v=20261107205925';
-import { records, rpi, rating, indexName, usesNpi, isFinal, winnerOf, isTie } from './standings.js?v=20261107205925';
+import { rng, normal, hashStr, clamp } from './util.js?v=20261110235151';
+import { records, rpi, rating, indexName, usesNpi, isFinal, winnerOf, isTie } from './standings.js?v=20261110235151';
 
 export const DEFAULT_POLL_SIZE = 15;
 export const POLL_SIZES = [10, 15, 20, 25];
@@ -216,11 +216,36 @@ export function teamScores(season, week, { postBonus = null } = {}) {
   return { scores: out, recs, rpi: r };
 }
 
+// Losing records. Voters mark a team down for a record under about .600,
+// more as the season goes on, and once a team has played about a fifth of
+// its season (`recordGate`), one with a losing record goes to the bottom of
+// every ballot: it's ranked only when there aren't enough teams at .500 or
+// better to fill the poll (a sport with few teams).
+const RECORD_PENALTY = 4, RECORD_PAR = 0.6;
+const pctOf = r => { const n = r.w + r.l + (r.t || 0); return n ? (r.w + (r.t || 0) / 2) / n : 0.5; };
+function recordGate(season) {
+  const n = {};
+  for (const g of season.games) if (g.type === 'regular') { n[g.home] = (n[g.home] || 0) + 1; n[g.away] = (n[g.away] || 0) + 1; }
+  const v = Object.values(n);
+  return Math.max(5, Math.round(0.2 * (v.length ? v.reduce((a, b) => a + b, 0) / v.length : 25)));
+}
+export function recordRules(season, recs) {
+  const gate = recordGate(season);
+  const penalty = {}, barred = new Set();
+  for (const [t, r] of Object.entries(recs)) {
+    const n = r.w + r.l + (r.t || 0), pct = pctOf(r);
+    penalty[t] = Math.min(1, n / gate) * RECORD_PENALTY * Math.max(0, RECORD_PAR - pct);
+    if (n >= gate && pct < 0.5) barred.add(t);
+  }
+  return { penalty, barred };
+}
+
 export function generatePoll(season, week, { final = false, postBonus = null } = {}) {
   const size = pollSizeOf(season);
   const wk = final ? 99 : week;
   const inp = pollInputs(season, wk);
   const { teams, recs, zP, zQ, zR, zS, played, strengthW } = inp;
+  const { penalty, barred } = recordRules(season, recs);
   const prev = final ? season.polls?.[Math.max(...Object.keys(season.polls).filter(k => k !== 'final').map(Number))] : previousPoll(season, week);
   const prevRank = {};
   prev?.ranks.forEach((x, i) => { prevRank[x.team] = i + 1; });
@@ -263,11 +288,15 @@ export function generatePoll(season, week, { final = false, postBonus = null } =
       sc -= v.losses * badLosses[t];
       if (vconf && season.teams[t].conference === vconf) sc += v.regionBoost;
       sc += postBonus?.[t] || 0;
+      sc -= penalty[t] || 0;
       sc += normal(noise) * v.noise;
       return [t, sc];
     }).sort((a, b) => b[1] - a[1]).map(x => x[0]);
     // No voter moves a ranked team up after a losing week.
-    const ballot = holdLosers(full, prevRank, weekW, weekL).slice(0, size);
+    const ballot = holdLosers(full, prevRank, weekW, weekL);
+    // Losing records last (they still fill the poll in a small sport).
+    ballot.sort((a, b) => barred.has(a) - barred.has(b));
+    ballot.splice(size);
     ballots[v.id] = ballot;
     ballot.forEach((t, i) => { pts[t] = (pts[t] || 0) + size - i; if (i === 0) fp[t] = (fp[t] || 0) + 1; });
   }

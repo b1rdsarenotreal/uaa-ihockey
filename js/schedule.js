@@ -18,9 +18,9 @@
 // later), so the season fills `regWeeks` (22).
 // When `prev` (last season) is given, series hosts swap from last year.
 
-import { isIndependent } from './standings.js?v=20261111225337';
-import { cityPoint, miles } from './geo.js?v=20261111225337';
-import { rng, shuffle, hashStr } from './util.js?v=20261111225337';
+import { isIndependent } from './standings.js?v=20261111234538';
+import { cityPoint, miles } from './geo.js?v=20261111234538';
+import { rng, shuffle, hashStr } from './util.js?v=20261111234538';
 
 export const DEFAULT_REG_WEEKS = 22;
 export const DEFAULT_TOURNEY_WEEKS = 0; // kept for older code paths
@@ -261,20 +261,35 @@ function crossPairs(pool, teams, met, r) {
 // random order) takes the free opponent with the lowest cost, which is the
 // distance between their homes, the gap in their ratings and some
 // randomness, with a big penalty for a repeat opponent. `dist` is in miles.
+// Level: a little pull toward teams of a similar rating (good matches for
+// the index), and a big one against a Division I power playing a Division
+// III school. Marquee games (two teams in the top third by rating) get
+// harder to add the more of them either team already has, so a top team
+// plays a few, not a whole non-conference schedule of them (the owner's
+// rule, Nov. 2026).
+const levelCost = (x, y) => { const g = Math.abs(x - y); return g * 15 + Math.max(0, g - 16) * 60; };
+const MARQUEE = 100, marquee = new WeakMap();
+function marqueeOf(met, teams, lvl) {
+  if (!marquee.has(met)) {
+    const names = Object.keys(teams), top = new Set([...names].sort((a, b) => lvl(b) - lvl(a)).slice(0, Math.ceil(names.length / 3)));
+    marquee.set(met, { top, n: {} });
+  }
+  return marquee.get(met);
+}
 function nearCross(pool, teams, met, r, dist) {
   const lvl = t => (teams[t].off ?? 65) * 0.4 + (teams[t].pit ?? 65) * 0.3 + (teams[t].def ?? 65) * 0.3;
+  const mq = marqueeOf(met, teams, lvl), big = (a, b) => mq.top.has(a) && mq.top.has(b);
   const left = shuffle(pool, r), pairs = [];
   while (left.length > 1) {
     const a = left.shift();
     let best = -1, bs = Infinity;
     left.forEach((b, j) => {
       if (rival(teams, a, b)) return;
-      // Teams of a similar level, too: a Division I power rarely plays a
-      // Division III school (about 40 miles a rating point).
-      const c = dist(a, b) + r() * 700 + Math.abs(lvl(a) - lvl(b)) * 30 + (met.has(key(a, b)) ? 4000 : 0);
+      // Teams of a similar level, too (`levelCost`), but few marquee games each.
+      const c = dist(a, b) + r() * 700 + levelCost(lvl(a), lvl(b)) + (big(a, b) ? MARQUEE * ((mq.n[a] || 0) + (mq.n[b] || 0)) : 0) + (met.has(key(a, b)) ? 4000 : 0);
       if (c < bs) { bs = c; best = j; }
     });
-    if (best >= 0) pairs.push([a, left.splice(best, 1)[0]]);
+    if (best >= 0) { const b = left.splice(best, 1)[0]; pairs.push([a, b]); if (big(a, b)) { mq.n[a] = (mq.n[a] || 0) + 1; mq.n[b] = (mq.n[b] || 0) + 1; } }
   }
   return pairs;
 }

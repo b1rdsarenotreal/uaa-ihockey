@@ -1,12 +1,12 @@
 // App shell: loading the dynasty, the top bar, and page routing.
 
-import { loadLeague, saveLeague, currentSide, setSide } from './store.js?v=20261111225337';
-import { loadLogoTable } from './logos.js?v=20261111225337';
-import { newLeague, afterChange, migrateLeague } from './league.js?v=20261111225337';
-import { ctx, app, cache, persist, esc, flushSave, seasonLabel } from './ui.js?v=20261111225337';
-import { renderHome, renderSchedule, renderStandings, renderRankings, renderPostseason, resetSeasonUi } from './views-season.js?v=20261111225337';
-import { renderRecords } from './views-records.js?v=20261111225337';
-import { renderTeams, renderTeamPage, renderConferences, renderConferencePage, renderHistory, renderSettings, renderOffseason, renderCoaches, renderCoachPage } from './views-league.js?v=20261111225337';
+import { loadLeague, saveLeague, currentSide, setSide } from './store.js?v=20261111234538';
+import { loadLogoTable } from './logos.js?v=20261111234538';
+import { newLeague, afterChange, migrateLeague } from './league.js?v=20261111234538';
+import { ctx, app, cache, persist, esc, flushSave, seasonLabel } from './ui.js?v=20261111234538';
+import { renderHome, renderSchedule, renderStandings, renderRankings, renderPostseason, resetSeasonUi } from './views-season.js?v=20261111234538';
+import { renderRecords } from './views-records.js?v=20261111234538';
+import { renderTeams, renderTeamPage, renderConferences, renderConferencePage, renderHistory, renderSettings, renderOffseason, renderCoaches, renderCoachPage } from './views-league.js?v=20261111234538';
 
 const VIEWS = { home: 'Home', schedule: 'Schedule', standings: 'Standings', rankings: 'Rankings', postseason: 'Postseason', offseason: 'Offseason', teams: 'Teams', coaches: 'Coaches', conferences: 'Conferences', history: 'History', records: 'Records', settings: 'Settings' };
 const SUBVIEWS = { team: 'teams', conference: 'conferences', coach: 'coaches' };

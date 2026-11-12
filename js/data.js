@@ -32,7 +32,7 @@
 // couldn't be confirmed, starts open. Rinks are each school's home rink
 // (several men's teams play in a bigger arena).
 
-import { DEFAULT_LOGOS } from './logo-import.js?v=20261111124340';
+import { DEFAULT_LOGOS } from './logo-import.js?v=20261111204958';
 
 export const START_YEAR = 2030;
 
@@ -121,7 +121,7 @@ export const MEN_SITES = {
 };
 
 // Names the logo lists may know a school by.
-export const LOGO_ALIASES = { 'Penn': 'Pennsylvania', 'Miami': 'Miami', 'UC Santa Barbara': 'UC Santa Barbara', 'George Washington': 'George Washington' };
+export const LOGO_ALIASES = { 'Penn': 'Pennsylvania', 'Miami': 'Miami', 'UC Santa Barbara': 'UC Santa Barbara', 'George Washington': 'George Washington', 'UConn': 'Connecticut' };
 
 // Head coaches for the 2026 season (see above). By 2030 some will have moved
 // on; rename anyone on the Coaches page.

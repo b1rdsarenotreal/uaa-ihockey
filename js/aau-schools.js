@@ -1,9 +1,12 @@
-import { CONF_LOGO_LINKS } from './data.js?v=20261111124340';
+import { CONF_LOGO_LINKS } from './data.js?v=20261111204958';
 
-// Every AAU member school (73), for the "AAU school" pick on the Add team
-// form: abbreviation, mascot, colors, city and the conference it plays in
-// in the owner's AAU Dynasty alignment. Taken from AAU Basketball, which has
-// all 73. The home venue and ratings are the sport's own, so they're not here.
+// Every AAU member school, for the "AAU school" pick on the Add team form:
+// abbreviation, mascot, colors, city and the conference it plays in in the
+// owner's AAU Dynasty alignment. The 73 founding members (from AAU
+// Basketball) and the 7 that join for 2032-33 (`joins`, the owner's
+// expansion, Nov. 2026). Schools that leave the AAU (McGill and Toronto
+// after 2031-32) stay listed so they can be added back. The home venue and
+// ratings are the sport's own, so they're not here.
 export const AAU_SCHOOLS = {
   "Arizona": { abbr: "ARIZ", mascot: "Wildcats", color: '#0C234B', altColor: '#AB0520', city: "Tucson, Ariz.", conference: "Pacific-10 Conference" },
   "Arizona State": { abbr: "ASU", mascot: "Sun Devils", color: '#8C1D40', altColor: '#FFC627', city: "Tempe, Ariz.", conference: "Pacific-10 Conference" },
@@ -23,13 +26,16 @@ export const AAU_SCHOOLS = {
   "Duke": { abbr: "DUKE", mascot: "Blue Devils", color: '#00539B', altColor: '#FFFFFF', city: "Durham, N.C.", conference: "Coastal Atlantic Conference" },
   "Emory": { abbr: "EMRY", mascot: "Eagles", color: '#012169', altColor: '#F2A900', city: "Atlanta, Ga.", conference: "University Athletic Association" },
   "Florida": { abbr: "FLA", mascot: "Gators", color: '#0021A5', altColor: '#FA4616', city: "Gainesville, Fla.", conference: "Coastal Atlantic Conference" },
+  "Florida State": { abbr: "FSU", mascot: "Seminoles", color: '#782F40', altColor: '#CEB888', city: "Tallahassee, Fla.", conference: "Coastal Atlantic Conference", joins: 2032 },
   "George Washington": { abbr: "GW", mascot: "Revolutionaries", color: '#033C5A', altColor: '#AA9868', city: "Washington, D.C.", conference: "Metro Conference" },
   "Georgetown": { abbr: "GTWN", mascot: "Hoyas", color: '#041E42', altColor: '#63666A', city: "Washington, D.C.", conference: "Metro Conference" },
+  "Georgia": { abbr: "UGA", mascot: "Bulldogs", color: '#BA0C2F', altColor: '#000000', city: "Athens, Ga.", conference: "Coastal Atlantic Conference", joins: 2032 },
   "Georgia Tech": { abbr: "GT", mascot: "Yellow Jackets", color: '#B3A369', altColor: '#003057', city: "Atlanta, Ga.", conference: "Coastal Atlantic Conference" },
   "Harvard": { abbr: "HARV", mascot: "Crimson", color: '#A51C30', altColor: '#1E1E1E', city: "Boston, Mass.", conference: "Ivy League" },
   "Illinois": { abbr: "ILL", mascot: "Fighting Illini", color: '#13294B', altColor: '#E84A27', city: "Champaign, Ill.", conference: "Big Ten" },
   "Indiana": { abbr: "IND", mascot: "Hoosiers", color: '#990000', altColor: '#EEEDEB', city: "Bloomington, Ind.", conference: "Big Ten" },
   "Iowa": { abbr: "IOWA", mascot: "Hawkeyes", color: '#000000', altColor: '#FFCD00', city: "Iowa City, Iowa", conference: "Big Ten" },
+  "Iowa State": { abbr: "ISU", mascot: "Cyclones", color: '#C8102E', altColor: '#F1BE48', city: "Ames, Iowa", conference: "Southwest Conference", joins: 2032 },
   "Johns Hopkins": { abbr: "JHU", mascot: "Blue Jays", color: '#002D72', altColor: '#68ACE5', city: "Baltimore, Md.", conference: "University Athletic Association" },
   "Kansas": { abbr: "KU", mascot: "Jayhawks", color: '#0051BA', altColor: '#E8000D', city: "Lawrence, Kan.", conference: "Southwest Conference" },
   "Maryland": { abbr: "MD", mascot: "Terrapins", color: '#E21833', altColor: '#FFD200', city: "College Park, Md.", conference: "Coastal Atlantic Conference" },
@@ -40,6 +46,7 @@ export const AAU_SCHOOLS = {
   "Minnesota": { abbr: "MINN", mascot: "Golden Gophers", color: '#7A0019', altColor: '#FFCC33', city: "Minneapolis, Minn.", conference: "Big Ten" },
   "Missouri": { abbr: "MIZ", mascot: "Tigers", color: '#000000', altColor: '#F1B82D', city: "Columbia, Mo.", conference: "Southwest Conference" },
   "MIT": { abbr: "MIT", mascot: "Engineers", color: '#A31F34', altColor: '#8A8B8C', city: "Cambridge, Mass.", conference: "University Athletic Association" },
+  "Nebraska": { abbr: "NEB", mascot: "Cornhuskers", color: '#E41C38', altColor: '#FDF2D9', city: "Lincoln, Neb.", conference: "Big Ten", joins: 2032 },
   "North Carolina": { abbr: "UNC", mascot: "Tar Heels", color: '#7BAFD4', altColor: '#13294B', city: "Chapel Hill, N.C.", conference: "Coastal Atlantic Conference" },
   "Northwestern": { abbr: "NU", mascot: "Wildcats", color: '#4E2A84', altColor: '#FFFFFF', city: "Evanston, Ill.", conference: "Big Ten" },
   "Notre Dame": { abbr: "ND", mascot: "Fighting Irish", color: '#0C2340', altColor: '#C99700', city: "Notre Dame, Ind.", conference: "Coastal Atlantic Conference" },
@@ -57,6 +64,7 @@ export const AAU_SCHOOLS = {
   "South Florida": { abbr: "USF", mascot: "Bulls", color: '#006747', altColor: '#CFC493', city: "Tampa, Fla.", conference: "Coastal Atlantic Conference" },
   "Stanford": { abbr: "STAN", mascot: "Cardinal", color: '#8C1515', altColor: '#FFFFFF', city: "Stanford, Calif.", conference: "Pacific-10 Conference" },
   "Stony Brook": { abbr: "SBU", mascot: "Seawolves", color: '#990000', altColor: '#16243E', city: "Stony Brook, N.Y.", conference: "Metro Conference" },
+  "Syracuse": { abbr: "SYR", mascot: "Orange", color: '#F76900', altColor: '#000E54', city: "Syracuse, N.Y.", conference: "Metro Conference", joins: 2032 },
   "Texas": { abbr: "TEX", mascot: "Longhorns", color: '#BF5700', altColor: '#FFFFFF', city: "Austin, Texas", conference: "Southwest Conference" },
   "Texas A&M": { abbr: "TAMU", mascot: "Aggies", color: '#500000', altColor: '#FFFFFF', city: "College Station, Texas", conference: "Southwest Conference" },
   "Toronto": { abbr: "TOR", mascot: "Varsity Blues", color: '#1E3765', altColor: '#FFFFFF', city: "Toronto, Ont.", conference: "Metro Conference" },
@@ -65,11 +73,13 @@ export const AAU_SCHOOLS = {
   "UAB": { abbr: "UAB", mascot: "Blazers", color: '#1E6B52', altColor: '#F4C300', city: "Birmingham, Ala.", conference: "Southwest Conference" },
   "UC Davis": { abbr: "UCD", mascot: "Aggies", color: '#022851', altColor: '#FFBF00', city: "Davis, Calif.", conference: "UC Athletic Association" },
   "UC Irvine": { abbr: "UCI", mascot: "Anteaters", color: '#0064A4', altColor: '#FFD200', city: "Irvine, Calif.", conference: "UC Athletic Association" },
+  "UC Merced": { abbr: "UCM", mascot: "Golden Bobcats", color: '#002856', altColor: '#DAA900', city: "Merced, Calif.", conference: "UC Athletic Association", joins: 2032 },
   "UC Riverside": { abbr: "UCR", mascot: "Highlanders", color: '#003DA5', altColor: '#FFB81C', city: "Riverside, Calif.", conference: "UC Athletic Association" },
   "UC San Diego": { abbr: "UCSD", mascot: "Tritons", color: '#182B49', altColor: '#C69214', city: "La Jolla, Calif.", conference: "UC Athletic Association" },
   "UC Santa Barbara": { abbr: "UCSB", mascot: "Gauchos", color: '#003660', altColor: '#FEBC11', city: "Santa Barbara, Calif.", conference: "UC Athletic Association" },
   "UC Santa Cruz": { abbr: "UCSC", mascot: "Banana Slugs", color: '#003C6C', altColor: '#FDC700', city: "Santa Cruz, Calif.", conference: "UC Athletic Association" },
   "UCLA": { abbr: "UCLA", mascot: "Bruins", color: '#2D68C4', altColor: '#F2A900', city: "Los Angeles, Calif.", conference: "Pacific-10 Conference" },
+  "UConn": { abbr: "UCONN", mascot: "Huskies", color: '#000E2F', altColor: '#E4002B', city: "Storrs, Conn.", conference: "Metro Conference", joins: 2032 },
   "USC": { abbr: "USC", mascot: "Trojans", color: '#990000', altColor: '#FFC72C', city: "Los Angeles, Calif.", conference: "Pacific-10 Conference" },
   "Utah": { abbr: "UTAH", mascot: "Utes", color: '#CC0000', altColor: '#000000', city: "Salt Lake City, Utah", conference: "Pacific-10 Conference" },
   "Vanderbilt": { abbr: "VAN", mascot: "Commodores", color: '#000000', altColor: '#CFAE70', city: "Nashville, Tenn.", conference: "Southwest Conference" },

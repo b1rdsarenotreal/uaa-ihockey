@@ -1,4 +1,4 @@
-import { CONF_LOGO_LINKS } from './data.js?v=20261111204958';
+import { CONF_LOGO_LINKS } from './data.js?v=20261111210339';
 
 // Every AAU member school, for the "AAU school" pick on the Add team form:
 // abbreviation, mascot, colors, city and the conference it plays in in the
@@ -102,4 +102,18 @@ export const AAU_CONFERENCES = {
   'Southwest Conference': { abbr: 'SWC', color: '#719AE8', altColor: '#F28C38', logo: 'img/conf/swc.svg' },
   'UC Athletic Association': { abbr: 'UCAA', color: '#0F6E7A', altColor: '#F2C14E', logo: 'img/conf/ucaa.svg' },
   'University Athletic Association': { abbr: 'UAA', color: '#003087', altColor: '#F2B33D', logo: CONF_LOGO_LINKS.uaa },
+};
+
+// Home venue and 2026 head coach, by side, for the schools that join for
+// 2032-33 (the sports each one plays here). From the schools' athletics
+// sites and Wikipedia, Nov. 2026. Picking one of these schools on the Add
+// team form fills these in too.
+export const AAU_PROGRAMS = {
+  women: {
+    "Syracuse": { stadium: "Tennity Ice Pavilion", coach: "Britni Smith" },
+    "UConn": { stadium: "Toscano Family Ice Forum", coach: "Chris MacKenzie" },
+  },
+  men: {
+    "UConn": { stadium: "Toscano Family Ice Forum", coach: "Mike Cavanaugh" },
+  },
 };

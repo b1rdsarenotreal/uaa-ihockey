@@ -1,12 +1,12 @@
 // App shell: loading the dynasty, the top bar, and page routing.
 
-import { loadLeague, saveLeague, currentSide, setSide } from './store.js?v=20261111210339';
-import { loadLogoTable } from './logos.js?v=20261111210339';
-import { newLeague, afterChange, migrateLeague } from './league.js?v=20261111210339';
-import { ctx, app, cache, persist, esc, flushSave, seasonLabel } from './ui.js?v=20261111210339';
-import { renderHome, renderSchedule, renderStandings, renderRankings, renderPostseason, resetSeasonUi } from './views-season.js?v=20261111210339';
-import { renderRecords } from './views-records.js?v=20261111210339';
-import { renderTeams, renderTeamPage, renderConferences, renderConferencePage, renderHistory, renderSettings, renderOffseason, renderCoaches, renderCoachPage } from './views-league.js?v=20261111210339';
+import { loadLeague, saveLeague, currentSide, setSide } from './store.js?v=20261111225337';
+import { loadLogoTable } from './logos.js?v=20261111225337';
+import { newLeague, afterChange, migrateLeague } from './league.js?v=20261111225337';
+import { ctx, app, cache, persist, esc, flushSave, seasonLabel } from './ui.js?v=20261111225337';
+import { renderHome, renderSchedule, renderStandings, renderRankings, renderPostseason, resetSeasonUi } from './views-season.js?v=20261111225337';
+import { renderRecords } from './views-records.js?v=20261111225337';
+import { renderTeams, renderTeamPage, renderConferences, renderConferencePage, renderHistory, renderSettings, renderOffseason, renderCoaches, renderCoachPage } from './views-league.js?v=20261111225337';
 
 const VIEWS = { home: 'Home', schedule: 'Schedule', standings: 'Standings', rankings: 'Rankings', postseason: 'Postseason', offseason: 'Offseason', teams: 'Teams', coaches: 'Coaches', conferences: 'Conferences', history: 'History', records: 'Records', settings: 'Settings' };
 const SUBVIEWS = { team: 'teams', conference: 'conferences', coach: 'coaches' };
@@ -21,7 +21,7 @@ function routeArg() { return decodeURIComponent(location.hash.replace(/^#\/?/, '
 
 function renderChrome() {
   const L = ctx.league;
-  document.getElementById('league-name').textContent = L.name;
+  document.getElementById('league-name').textContent = L.name.replace(/^AAU\s+/i, ''); // the AAU wordmark comes first
   // Women's / men's switch: two separate dynasties, each with its own save.
   const side = L.side === 'men' ? 'men' : 'women';
   const sw = document.getElementById('side-switch');

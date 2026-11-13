@@ -1,20 +1,20 @@
 // League pages: teams, team profiles, conferences, history, settings.
 
-import { readAauLogos, applyAauLogos, DEFAULT_LOGOS } from './logo-import.js?v=20261111234538';
-import { AAU_SCHOOLS, AAU_CONFERENCES, AAU_PROGRAMS } from './aau-schools.js?v=20261111234538';
-import { ctx, S, app, modal, $, $$, esc, toast, changed, persist, flushSave, cache, team, teamInfo, logoImg, teamOptions, teamHref, confLogo, confHref, confInfo, confColor, imageFileToDataUrl, readableOn, openGame, resultText, periodNote, gameDateOf, seasonLabel, seasonSpan } from './ui.js?v=20261111234538';
-import { isFinal, winnerOf, resultFor, records, rpi, rating, indexName, usesNpi, confStandings, regSeasonChamp, regSeasonChamps, isIndependent } from './standings.js?v=20261111234538';
-import { ovr } from './sim.js?v=20261111234538';
-import { latestPoll, pollRankMap, pollSizeOf, POLL_SIZES, DEFAULT_POLL_SIZE } from './polls.js?v=20261111234538';
-import { addTeam, removeTeam, renameTeam, addConference, renameConference, deleteConference, rebuildSchedule, startNextSeason, weekName, newLeague, beginOffseason, draftRemoveTeam, draftRestoreTeam, draftWarnings, coachName, coachSchool, hireCoach, newCoach, availableCoaches, backfillHitsErrors, placeRemaining, clearPoints, pointsLeft, migrateLeague, applyAlignment, canApplyAlignment, syncCoachBonus, devTotal, coachResumes, coachPrestige, prestigeLabel, coachBonus, programPrestiges, programLabel, fitLabel } from './league.js?v=20261111234538';
-import { hotSeat, HEAT } from './hotseat.js?v=20261111234538';
-import { setRating } from './ratings.js?v=20261111234538';
-import { confFormatName, aqConferences, aqMinOf, postseasonFinish, postseasonDetail, postseasonRecord, wsTeams, postWeeks, regWeeksOf, ncaaConfig, ncaaProblems, fieldSize, hasSupers, formatSummary, proposeField, DEFAULT_NCAA, mcwsVenue, allEvents, gameVenue } from './postseason.js?v=20261111234538';
-import { DEFAULT_TOURNEY_WEEKS, DEFAULT_REG_WEEKS, DEFAULT_CONF_MATCHES, DEFAULT_MAX_MATCHES, confTarget } from './schedule.js?v=20261111234538';
-import { exportLeague, clearLeague } from './store.js?v=20261111234538';
-import { conferencesFor, sideOf } from './data.js?v=20261111234538';
-import { clamp, fmtPct } from './util.js?v=20261111234538';
-import { recordBook, teamPollHistory, headToHead } from './records.js?v=20261111234538';
+import { readAauLogos, applyAauLogos, DEFAULT_LOGOS } from './logo-import.js?v=20261112194916';
+import { AAU_SCHOOLS, AAU_CONFERENCES, AAU_PROGRAMS } from './aau-schools.js?v=20261112194916';
+import { ctx, S, app, modal, $, $$, esc, toast, changed, persist, flushSave, cache, team, teamInfo, logoImg, teamOptions, teamHref, confLogo, confHref, confInfo, confColor, imageFileToDataUrl, readableOn, openGame, resultText, periodNote, gameDateOf, seasonLabel, seasonSpan } from './ui.js?v=20261112194916';
+import { isFinal, winnerOf, resultFor, records, rpi, rating, indexName, usesNpi, confStandings, regSeasonChamp, regSeasonChamps, isIndependent } from './standings.js?v=20261112194916';
+import { ovr } from './sim.js?v=20261112194916';
+import { latestPoll, pollRankMap, pollSizeOf, POLL_SIZES, DEFAULT_POLL_SIZE } from './polls.js?v=20261112194916';
+import { addTeam, removeTeam, renameTeam, addConference, renameConference, deleteConference, rebuildSchedule, startNextSeason, weekName, newLeague, beginOffseason, draftRemoveTeam, draftRestoreTeam, draftWarnings, coachName, coachSchool, hireCoach, newCoach, availableCoaches, backfillHitsErrors, placeRemaining, clearPoints, pointsLeft, migrateLeague, applyAlignment, canApplyAlignment, syncCoachBonus, devTotal, coachResumes, coachPrestige, prestigeLabel, coachBonus, programPrestiges, programLabel, fitLabel } from './league.js?v=20261112194916';
+import { hotSeat, HEAT } from './hotseat.js?v=20261112194916';
+import { setRating } from './ratings.js?v=20261112194916';
+import { confFormatName, aqConferences, aqMinOf, postseasonFinish, postseasonDetail, postseasonRecord, wsTeams, postWeeks, regWeeksOf, ncaaConfig, ncaaProblems, fieldSize, hasSupers, formatSummary, proposeField, DEFAULT_NCAA, mcwsVenue, allEvents, gameVenue } from './postseason.js?v=20261112194916';
+import { DEFAULT_TOURNEY_WEEKS, DEFAULT_REG_WEEKS, DEFAULT_CONF_MATCHES, DEFAULT_MAX_MATCHES, confTarget } from './schedule.js?v=20261112194916';
+import { exportLeague, clearLeague } from './store.js?v=20261112194916';
+import { conferencesFor, sideOf } from './data.js?v=20261112194916';
+import { clamp, fmtPct } from './util.js?v=20261112194916';
+import { recordBook, teamPollHistory, headToHead } from './records.js?v=20261112194916';
 
 const ui = { confFilter: '', ncaaDraft: null, teamSort: { k: 'ovr', dir: -1 }, coachSort: { k: 'now', dir: -1 }, teamTab: 'season', h2hSort: { k: 'g', dir: -1 }, h2hFilter: 'all', memberSort: { k: 'titles', dir: -1 } };
 
@@ -548,55 +548,94 @@ export function gameDate(s, g) {
 function teamScheduleRows(s, name, t, games) {
   if (!games.length) return '<p class="muted">No games.</p>';
   const evName = Object.fromEntries(allEvents(s).map(ev => [ev.id, ev]));
-  const venue = mcwsVenue(s);
-  // Header bars for events: conference tournaments, the national tournament's
-  // regions, and the Frozen Four.
+  // One box for the regular season in date order (conference games carry
+  // the conference's logo) and one per tournament, preseason ones included
+  // (the owner's call, Nov. 2026). Each box's record is in its header.
   const group = g => {
     if (g.tourney) return { key: g.tourney, title: g.label };
     if (g.type === 'conf') { const ev = evName[g.event]; return { key: g.event, title: `${ev?.conf || ''} Tournament` }; }
     if (g.type === 'regional' || g.type === 'super') { const ev = evName[g.event]; return { key: g.event, title: ev?.name || 'AAU National Tournament' }; }
     if (g.type === 'mcws') return { key: 'mcws', title: s.settings.mcwsName || 'Frozen Four' };
-    if (g.type === 'regular') return g.confGame ? { key: 'conf', title: `${s.teams[name]?.conference || t.conference} play` } : { key: 'nc', title: 'Non-conference' };
+    if (g.type === 'regular') return { key: 'reg', title: 'Regular season' };
     return null;
   };
-  const dateBg = /^#[0-9a-f]{6}$/i.test(t.color || '') && t.color.toLowerCase() !== '#ffffff' ? t.color : (t.altColor || '#2c3e50');
-  const dateFg = readableOn(dateBg);
-  let last = null;
-  const out = [];
+  const conf = s.teams[name]?.conference || t.conference;
+  const tally = {};
   for (const g of games) {
-    const grp = group(g);
-    if (grp && grp.key !== last) out.push(`<div class="ts-head">${esc(grp.title)}</div>`);
-    last = grp ? grp.key : null;
+    const grp = group(g); if (!grp || !isFinal(g)) continue;
+    const k = (tally[grp.key] ||= { W: 0, L: 0, T: 0, cW: 0, cL: 0, cT: 0, c: 0 }), res = resultFor(g, name);
+    if (res === 'W' || res === 'L' || res === 'T') { k[res]++; if (g.confGame) { k['c' + res]++; k.c++; } }
+  }
+  const groups = [];
+  for (const g of games) { const grp = group(g) || { key: 'other', title: 'Other' }; const last = groups[groups.length - 1]; if (last && last.key === grp.key) last.games.push(g); else groups.push({ ...grp, games: [g] }); }
+  const DOWN = { Mon: 'Mon', Tue: 'Tue', Wed: 'Wed', Thu: 'Thu', Fri: 'Fri', Sat: 'Sat', Sun: 'Sun' };
+  const row = g => {
     const home = g.home === name, opp = home ? g.away : g.home;
-    const fin = isFinal(g), res = fin ? resultFor(g, name) : null, won = res === 'W';
-    const extra = fin ? periodNote(g) : '';
-    // Where it's played: the host's arena (a tournament host's when neither
-    // team is the host), or the Championship arena. City on top, arena below.
+    const fin = isFinal(g), res = fin ? resultFor(g, name) : null;
     const v = gameVenue(s, g), site = v.host;
-    const away = site === opp;
-    const where = v.city || v.stadium
-      ? `<b>${esc(v.city || v.stadium)}</b>${v.city && v.stadium ? `<span>${esc(v.stadium)}</span>` : ''}`
-      : esc(g.type === 'mcws' ? venue.stadium : site === name ? 'Home' : site || 'Neutral site');
+    const where = site === name ? 'Home' : site === opp ? 'Away' : 'Neutral';
+    const extra = fin ? (g.pk ? `SO ${Math.max(g.pk.home, g.pk.away)}-${Math.min(g.pk.home, g.pk.away)}` : periodNote(g)) : '';
     const ranks = fin ? cache.ranksAt(g.week) : cache.ranks();
     const oppRank = ranks[opp];
-    const tag = g.confGame ? (c => `<span class="ts-conf" title="${esc(c)} game">${confLogo(c, 20)}</span>`)(s.teams[name]?.conference || t.conference) : '';
+    const seedNote = g.type === 'regular' ? '' : (() => { const lbl = (g.label || '').split(' · ').slice(-1)[0]; return lbl ? ` · ${esc(lbl)}` : ''; })();
+    const tag = g.confGame ? `<span class="ts2-conf" title="${esc(conf)} game">${confLogo(conf, 22)}</span>` : '';
     const result = fin
-      ? `<b class="ts-wl ${res === 'W' ? 'w' : res === 'L' ? 'l' : ''}">${res}</b> <b>${home ? g.homeR : g.awayR}-${home ? g.awayR : g.homeR}</b>${extra ? `<div class="ts-inn">${extra}</div>` : ''}`
-      : '<span class="muted">—</span>';
-    out.push(`<div class="ts-row clickable" data-g="${g.id}" tabindex="0" role="button" aria-label="${esc(`${g.day} ${gameDate(s, g)}: ${away ? 'at' : 'vs.'} ${opp}${v.city ? ` in ${v.city}` : ''}${fin ? `, ${res === 'W' ? 'won' : res === 'L' ? 'lost' : 'tied'}` : ''}`)}">
-      <div class="ts-date" style="background:${esc(dateBg)};color:${esc(dateFg)}"><span>${esc(g.day)}</span><b>${gameDate(s, g)}</b></div>
-      <div class="ts-game">
-        <span class="ts-logo" title="${esc(name)}">${logoImg(t, 30)}</span>
-        ${ranks[name] ? `<span class="ts-rank ts-mine-rank" title="${esc(name)}'s rank that week">#${ranks[name]}</span>` : ''}
-        <span class="ts-vs">${away ? 'at' : 'vs.'}</span>
-        <span class="ts-logo">${logoImg(teamInfo(opp), 30)}</span>
-        <span class="ts-opp">${oppRank ? `<span class="ts-rank">#${oppRank}</span> ` : ''}<a class="team-link" href="${teamHref(opp)}">${esc(opp)}</a>${tag}</span>
-      </div>
-      <div class="ts-where">${where}</div>
-      <div class="ts-res">${result}</div>
-    </div>`);
+      ? `<a class="ts2-res" href="#" data-box="${g.id}" title="Box score"><span class="ts2-wl ${res === 'W' ? 'w' : res === 'L' ? 'l' : 't'}">${res}</span><b>${home ? g.homeR : g.awayR}–${home ? g.awayR : g.homeR}</b>${extra ? `<small>${extra}</small>` : ''}</a>`
+      : `<span class="muted">${esc(DOWN[g.day] || g.day)}</span>`;
+    return `<div class="ts2-row" data-g="${g.id}" tabindex="0" role="button" aria-label="${esc(`${gameDate(s, g)}: ${where === 'Away' ? 'at' : 'vs.'} ${opp}${fin ? `, ${res === 'W' ? 'won' : res === 'L' ? 'lost' : 'tied'}` : ''}`)}">
+      <span class="ts2-date">${esc(DOWN[g.day] || g.day)}, ${gameDate(s, g)}</span>
+      <span class="ts2-where">${where}</span>
+      <span class="ts2-opp"><span class="ts2-logo">${logoImg(teamInfo(opp), 30)}</span><span class="ts2-vs">${where === 'Away' ? 'at' : 'vs'}</span>${oppRank ? `<span class="ts2-rank">${oppRank}</span>` : ''}<a class="team-link" href="${teamHref(opp)}">${esc(opp)}</a>${seedNote ? `<span class="muted small">${seedNote}</span>` : ''}${tag}</span>
+      <span class="ts2-venue">${v.stadium ? `<b>${esc(v.stadium)}</b>` : ''}${v.city ? `<span>${esc(v.city)}</span>` : ''}</span>
+      <span class="ts2-result">${result}</span>
+    </div>`;
+  };
+  const head = gr => { const k = tally[gr.key]; const rec = k ? `${k.W}-${k.L}${k.T ? `-${k.T}` : ''}${gr.key === 'reg' && k.c ? ` · ${esc(confInfo(conf).abbr || conf)} ${k.cW}-${k.cL}${k.cT ? `-${k.cT}` : ''}` : ''}` : ''; return `<div class="ts2-head"><span>${esc(gr.title)}</span>${rec ? `<span class="ts2-hrec">${rec}</span>` : ''}</div>`; };
+  return `${groups.map(gr => `<section class="ts2-box">${head(gr)}<div class="ts2-scroll"><div class="ts2-cols"><span>Date</span><span>Where</span><span>Opponent</span><span>Venue</span><span>Result</span></div>${gr.games.map(row).join('')}</div></section>`).join('')}
+    <p class="small muted" style="margin-top:10px">Click a game or its result for the box score. Ranks are from the poll in effect when the game was played.</p>`;
+}
+
+// The team's header (the AAU look, Nov. 2026): its colors edge to edge, the
+// logo on a white tile, conference and city, the name, coach and field, this
+// season's title banners, and a strip of the season's numbers.
+const heroColor = t => (/^#[0-9a-f]{6}$/i.test(t.color || '') && !['#ffffff', '#000000'].includes(t.color.toLowerCase()) ? t.color : t.altColor || '#0b1f3a');
+function teamHero(s, name, t, rec, pr, r) {
+  const bg = /^#[0-9a-f]{6}$/i.test(t.color || '') && t.color.toLowerCase() !== '#ffffff' ? t.color : (t.altColor || '#0b1f3a');
+  const ink = readableOn(bg), acc = readableOn(bg, t.altColor);
+  const conf = t.conference, indep = isIndependent(conf);
+  const banners = [];
+  const d = postseasonDetail(s, name);
+  if (d && s.post?.mcws?.champion === name) banners.push(`<a class="th-banner gold" href="${postseasonHref(s.year, d)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h10v4a5 5 0 0 1-10 0z"/><path d="M7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4M12 13v4M8 21h8M9 17h6"/></svg><b>${s.year}</b><span>National champions</span></a>`);
+  else if (d) banners.push(`<a class="th-banner" href="${postseasonHref(s.year, d)}"><b>${s.year}</b><span>${esc(d.text)}</span></a>`);
+  if (!indep && s.teams[name]) {
+    const regRecs = records(s, g => g.type === 'regular');
+    if (regSeasonChamps(s, conf, regRecs, r).includes(name)) banners.push(`<a class="th-banner" href="${confHref(conf)}">${confLogo(conf, 26)}<b>${s.year}</b><span>${esc(confInfo(conf).abbr || conf)} champions</span></a>`);
+    if (s.post?.confT?.[conf]?.champion === name) banners.push(`<a class="th-banner" href="${confHref(conf)}">${confLogo(conf, 26)}<b>${s.year}</b><span>${esc(confInfo(conf).abbr || conf)} tournament</span></a>`);
   }
-  return `<div class="ts-list">${out.join('')}</div><p class="small muted" style="margin-top:10px">Click a game for its box score. Both teams' ranks are from the poll in effect when the game was played (the latest poll for games not yet played).</p>`;
+  let place = '';
+  if (!indep && s.teams[name]) { const st = confStandings(s, conf, records(s, g => g.type === 'regular'), r); const i = st.findIndex(x => x.team === name); if (i >= 0) place = ` · ${i + 1}${['st', 'nd', 'rd'][i] || 'th'}`; }
+  const finalPoll = !!s.polls?.final;
+  const stat = (v, l) => `<div class="th-stat"><b>${v}</b><span>${l}</span></div>`;
+  return `<section class="team-hero2" style="--tb:${esc(bg)};--ti:${ink};--ta:${acc}">
+    <div class="th-top">
+      <div class="th-logo">${logoImg(t, 96)}</div>
+      <div class="th-main">
+        <span class="th-kick">${indep ? 'Independent' : `<a href="${confHref(conf)}">${esc(conf)}</a>`}${t.city ? ` · ${esc(t.city)}` : ''}</span>
+        <h1 class="th-name">${pr[name] ? `<span class="th-rank">${pr[name]}</span>` : ''}${esc(name)}${t.mascot ? ` <span class="th-mascot">${esc(t.mascot)}</span>` : ''}</h1>
+        <span class="th-sub">${t.coachId ? `Head coach ${coachLink(t.coachId, 'color:inherit')}` : 'Head coach job open'}${t.stadium ? ` · ${esc(t.stadium)}` : ''}</span>
+      </div>
+      ${banners.length ? `<div class="th-banners">${banners.join('')}</div>` : ''}
+    </div>
+    ${s.teams[name] ? `<div class="th-strip">
+      ${stat(`${rec.w}-${rec.l}${rec.t ? `-${rec.t}` : ''}`, 'Overall')}
+      ${indep ? '' : stat(`${rec.cw}-${rec.cl}${rec.ct ? `-${rec.ct}` : ''}`, `${esc(confInfo(conf).abbr || 'Conf')}${place}`)}
+      ${stat(pr[name] ? `No. ${pr[name]}` : 'NR', finalPoll ? `Final Top ${pollSizeOf(s)}` : `Top ${pollSizeOf(s)}`)}
+      ${stat(r[name]?.rank ?? '—', `${indexName(s)} rank`)}
+      ${stat(`${rec.rs}–${rec.ra}`, 'Goals for–against')}
+      ${stat(`${t.off} · ${t.pit} · ${t.def}`, `${RL.off} · ${RL.pit} · ${RL.def}`)}
+      ${stat(rec.streak || '—', 'Streak')}
+    </div>` : ''}
+  </section>`;
 }
 
 export function renderTeamPage(name) {
@@ -612,36 +651,16 @@ export function renderTeamPage(name) {
   const confs = Object.keys(ctx.league.conferences).filter(c => !ctx.league.conferences[c].retired);
   const tab = !inSeason && ui.teamTab === 'season' ? 'history' : ui.teamTab;
   app.innerHTML = `
-    <div class="team-hero" style="--tc:${esc(t.color)};--ta:${esc(t.altColor)};color:${esc(readableOn(t.color, null))}">
-      <div class="team-hero-logo">${logoImg(t, 64)}</div>
-      <div style="flex:1;min-width:200px">
-        <div class="team-hero-name">${pr[name] ? `<span class="team-hero-rank">#${pr[name]}</span> ` : ''}${esc(name)}</div>
-        <div class="team-hero-sub">${t.coachId ? `Head coach ${coachLink(t.coachId, 'color:inherit;text-decoration:underline')} · ` : 'Head coach job open · '}${esc(t.mascot || '')} · <a href="${confHref(t.conference)}" style="color:inherit">${esc(t.conference)}</a> · ${rec.w}-${rec.l}-${rec.t || 0} ${isIndependent(t.conference) ? '' : `(${rec.cw}-${rec.cl}-${rec.ct || 0} conf)`} · OVR ${ovr(t)}</div>
-        ${t.stadium || t.city ? `<div class="team-hero-sub team-hero-field">${esc([t.stadium, t.city].filter(Boolean).join(' · '))}</div>` : ''}
-      </div>
-      <a class="btn" href="#/teams">All teams</a>
-    </div>
-    <div class="steps">${Object.entries({ season: `${seasonLabel(s.year)} season`, history: 'Program history', h2h: 'Head-to-head' }).map(([k, l]) => `<a href="${teamHref(name)}" data-ttab="${k}" class="${tab === k ? 'active' : ''}">${l}</a>`).join('')}</div>
+    ${teamHero(s, name, t, rec, pr, r)}
+    <nav class="team-tabs" aria-label="Team" style="--tc:${esc(heroColor(t))}">${Object.entries({ season: `${seasonLabel(s.year)} season`, history: 'Program history', h2h: 'Head-to-head' }).map(([k, l]) => `<a href="${teamHref(name)}" data-ttab="${k}" class="${tab === k ? 'active' : ''}">${l}</a>`).join('')}<span class="spacer"></span><a class="tt-all" href="#/teams">All teams</a></nav>
     ${tab === 'history' ? teamHistoryTab(name, t, history) : tab === 'h2h' ? teamH2HTab(name) : `
     ${inSeason ? '' : `<div class="hint" style="margin-bottom:14px">${esc(name)} isn't in the ${seasonLabel(s.year)} season. See Program history for its dynasty record.</div>`}
-      <div class="card team-season"><h2>${seasonLabel(s.year)} season</h2>
-        <div class="kpis kpis-sm">
-          <div class="kpi"><div class="v">${rec.w}-${rec.l}-${rec.t || 0}</div><div class="l">Overall</div></div>
-          <div class="kpi"><div class="v">${rec.cw}-${rec.cl}-${rec.ct || 0}</div><div class="l">Conference</div></div>
-          <div class="kpi"><div class="v">${r[name]?.rank ?? '—'}</div><div class="l">${indexName(s)} rank</div></div>
-          <div class="kpi"><div class="v">${rec.rs}<span class="kpi-sep">–</span>${rec.ra}</div><div class="l">Goals for–against</div></div>
-          <div class="kpi"><div class="v">${rec.hw}-${rec.hl}-${rec.ht || 0}</div><div class="l">Home</div></div>
-          <div class="kpi"><div class="v">${rec.aw}-${rec.al}-${rec.at || 0}</div><div class="l">Away</div></div>
-          <div class="kpi"><div class="v">${rec.streak || '—'}</div><div class="l">Streak</div></div>
-        </div>
-        ${(() => { const d = postseasonDetail(s, name); return d ? `<p><a class="badge gold" href="${postseasonHref(s.year, d)}">${esc(d.text)}</a></p>` : ''; })()}
-      </div>
-      <div class="card team-ratings" style="margin-top:16px"><h2>Ratings</h2>
+      <div class="card team-ratings"><h2>Ratings</h2>
         ${ratingBar('OFF', t.off, t.color, t.base?.off)}${ratingBar('MID', t.pit, t.color, t.base?.pit)}${ratingBar('DEF', t.def, t.color, t.base?.def)}${ratingBar('OVR', ovr(t), t.color, t.base ? ovrOf(t.base) : null)}
         <p class="small muted" style="margin:6px 0 0">Change since the preseason, from results so far. Ratings rise with wins over better teams and fall with losses to weaker ones.</p>
         ${inSeason ? `<div class="row" style="margin-top:10px">${['off', 'pit', 'def'].map(k => `<label class="field" style="width:80px">${RL[k]} <input type="number" min="40" max="99" data-r="${k}" value="${t[k]}"></label>`).join('')}</div>` : ''}
       </div>
-    <div class="card" style="margin-top:16px"><h2>Schedule & results</h2>${teamScheduleRows(s, name, t, games)}</div>
+    <div class="card team-sched" style="margin-top:16px"><h2>Schedule & results</h2>${teamScheduleRows(s, name, t, games)}</div>
     ${pollPts.length ? `<div class="card" style="margin-top:16px"><h2>Poll history</h2>${pollChart(pollPts, t.color === '#000000' || t.color === '#FFFFFF' ? t.altColor : t.color)}</div>` : ''}
     ${inSeason ? `<div class="card" style="margin-top:16px"><h2>Commissioner edits</h2>
       <div class="row"><label class="field" style="flex:2;min-width:160px">School <input type="text" id="e-school" value="${esc(name)}"></label>
@@ -660,7 +679,8 @@ export function renderTeamPage(name) {
 
   $$('[data-ttab]').forEach(a => (a.onclick = e => { e.preventDefault(); ui.teamTab = a.dataset.ttab; renderTeamPage(name); }));
   $$('[data-g]').forEach(rw => (rw.onclick = e => { if (!e.target.closest('a')) openGame(Number(rw.dataset.g)); }));
-  $$('.ts-row[data-g]').forEach(rw => (rw.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openGame(Number(rw.dataset.g)); } }));
+  $$('.ts2-row[data-g]').forEach(rw => (rw.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openGame(Number(rw.dataset.g)); } }));
+  $$('[data-box]').forEach(a => (a.onclick = e => { e.preventDefault(); e.stopPropagation(); openGame(Number(a.dataset.box)); }));
   if (tab === 'h2h') {
     bindSort(ui.h2hSort, () => renderTeamPage(name));
     $$('[data-h2hf]').forEach(b => (b.onclick = () => { ui.h2hFilter = b.dataset.h2hf; renderTeamPage(name); }));

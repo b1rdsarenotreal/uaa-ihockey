@@ -1,19 +1,19 @@
 // Season pages: home, schedule, standings, rankings and postseason.
 
-import { ctx, S, app, modal, $, $$, esc, toast, changed, persist, cache, team, teamOptions, teamNames, confLogo, confHref, confColor, confInfo, gameCard, compactCard, placeholderCard, bindGameCards, openGame, resultText, periodNote, DAY_NAMES, readableOn, teamInfo, logoImg, teamHref, seasonLabel } from './ui.js?v=20261111234538';
-import { isFinal, winnerOf, resultFor, records, rpi, rating, indexName, usesNpi, NPI_DIALS, confStandings, conferences, regSeasonChamp, regSeasonChamps, TIEBREAKERS, quadrants, quadCuts, isIndependent, INDEPENDENT } from './standings.js?v=20261111234538';
-import { latestPoll, generatePoll, pollRankMap, pollSizeOf, VOTER_PANEL, voterStyle, votersOf, addRandomVoter, removeVoter } from './polls.js?v=20261111234538';
-import { ovr } from './sim.js?v=20261111234538';
-import { simGames, addGame, weekName } from './league.js?v=20261111234538';
-import { confClashes, CONF_FORMATS, confFormatName, confKind , regionalFirstRound } from './postseason.js?v=20261111234538';
-import { COMMITTEE_TIERS, gameVenue, COMMITTEE_SHORT, committeeSheet, compareTeams, mcwsVenue, postWeeks, regWeeksOf, ncaaConfig, hasSupers, noRegionals, fieldSize, wsTeams, formatSummary, shownSeed, postseasonBonus, defaultConfTourneySize, confTourneySeeds, reseedConfTourney, proposeField, lockField, pods, nodeTeams, nodeNeeded, runnerUp, committeeOrder, autoBids, refLabel, setConfFormat, ensureLayout, confHost, setConfHost, mcwsHistory, selectionBoard, setAtLarge, confirmField, unconfirmField, bracketology, BRACKETOLOGY_FROM_WEEK } from './postseason.js?v=20261111234538';
-import { fmtPct, hashStr } from './util.js?v=20261111234538';
-import { DAY_ORDER, CONF_WEEKENDS, applyConfWeekend } from './schedule.js?v=20261111234538';
+import { ctx, S, app, modal, $, $$, esc, toast, changed, persist, cache, team, teamOptions, teamNames, confLogo, confHref, confColor, confInfo, gameCard, compactCard, placeholderCard, bindGameCards, openGame, resultText, periodNote, DAY_NAMES, readableOn, teamInfo, logoImg, teamHref, seasonLabel } from './ui.js?v=20261112194916';
+import { isFinal, winnerOf, resultFor, records, rpi, rating, indexName, usesNpi, NPI_DIALS, confStandings, conferences, regSeasonChamp, regSeasonChamps, TIEBREAKERS, quadrants, quadCuts, isIndependent, INDEPENDENT } from './standings.js?v=20261112194916';
+import { latestPoll, generatePoll, pollRankMap, pollSizeOf, VOTER_PANEL, voterStyle, votersOf, addRandomVoter, removeVoter } from './polls.js?v=20261112194916';
+import { ovr } from './sim.js?v=20261112194916';
+import { simGames, addGame, weekName } from './league.js?v=20261112194916';
+import { confClashes, CONF_FORMATS, confFormatName, confKind , regionalFirstRound } from './postseason.js?v=20261112194916';
+import { COMMITTEE_TIERS, gameVenue, COMMITTEE_SHORT, committeeSheet, compareTeams, mcwsVenue, postWeeks, regWeeksOf, ncaaConfig, hasSupers, noRegionals, fieldSize, wsTeams, formatSummary, shownSeed, postseasonBonus, defaultConfTourneySize, confTourneySeeds, reseedConfTourney, proposeField, lockField, pods, nodeTeams, nodeNeeded, runnerUp, committeeOrder, autoBids, refLabel, setConfFormat, ensureLayout, confHost, setConfHost, mcwsHistory, selectionBoard, setAtLarge, confirmField, unconfirmField, bracketology, BRACKETOLOGY_FROM_WEEK } from './postseason.js?v=20261112194916';
+import { fmtPct, hashStr } from './util.js?v=20261112194916';
+import { DAY_ORDER, CONF_WEEKENDS, applyConfWeekend } from './schedule.js?v=20261112194916';
 
 // " at Lynah Rink, Ithaca, N.Y." for a host school with a home rink.
 const atField = (s, school) => { const t = s.teams[school]; const f = [t?.stadium, t?.city].filter(Boolean).join(', '); return f ? ` at ${esc(f)}` : ''; };
 
-const ui = { week: null, schedFilter: 'all', pollWeek: null, rankTab: 'poll', postTab: null, editPoll: null, voter: null };
+const ui = { week: null, schedFilter: 'all', standConf: 'all', pollWeek: null, rankTab: 'poll', postTab: null, editPoll: null, voter: null };
 export function resetSeasonUi() { ui.week = null; ui.pollWeek = null; ui.postTab = null; ui.editPoll = null; }
 
 const PHASE_TEXT = { regular: 'Regular season', conf: 'Conference tournaments', selection: 'Selection', regionals: 'National Tournament: quarterfinals', supers: 'National Tournament: super regionals', mcws: 'Frozen Four', complete: 'Season complete' };
@@ -216,6 +216,17 @@ export function renderSchedule() {
 
 // ---------- Standings ----------
 
+// A conference's colors as CSS variables (--ch, --ch2, --chi: background,
+// second color, text on it), and its header: logo on a white tile, name,
+// a line under it, then badges.
+function confVars(c) {
+  const info = confInfo(c), bg = info.color || '#0b1f3a';
+  return `--ch:${esc(bg)};--ch2:${esc(info.altColor || bg)};--chi:${readableOn(bg)}`;
+}
+function confHead(c, sub = '', extra = '', attrs = '', logo = 48) {
+  return `<div class="conf-head" ${attrs}><a class="conf-tile" href="${confHref(c)}">${confLogo(c, logo)}</a><div class="conf-name"><h2><a href="${confHref(c)}">${esc(c)}</a></h2>${sub ? `<span>${sub}</span>` : ''}</div><span class="spacer"></span>${extra}</div>`;
+}
+
 export function renderStandings() {
   const s = S(), recs = cache.recs(), r = rating(s);
   const regRecs = records(s, g => g.type === 'regular');
@@ -223,9 +234,20 @@ export function renderStandings() {
   // Independents: no conference record, so they're listed by overall record.
   const indep = Object.values(s.teams).filter(t => isIndependent(t.conference)).map(t => t.school)
     .sort((a, b) => ((recs[b].w + (recs[b].t || 0) / 2) / Math.max(1, recs[b].w + recs[b].l + (recs[b].t || 0))) - ((recs[a].w + (recs[a].t || 0) / 2) / Math.max(1, recs[a].w + recs[a].l + (recs[a].t || 0))) || (r[a]?.rank ?? 999) - (r[b]?.rank ?? 999));
+  const wlt = x => `${x.w}-${x.l}-${x.t || 0}`;
   const indepCard = indep.length ? `<div class="card"><div class="row" style="margin-bottom:8px"><a href="${confHref(INDEPENDENT)}">${confLogo(INDEPENDENT, 30)}</a><h2 style="margin:0"><a class="team-link" href="${confHref(INDEPENDENT)}">Independents</a></h2><span class="spacer"></span><span class="muted small">No conference: at-large bids only</span></div>
       <div class="table-wrap"><table><thead><tr><th></th><th>Team</th><th class="num">Overall</th><th class="num">${indexName(s)}</th><th class="num">Home</th><th class="num">Away</th><th class="num">Strk</th></tr></thead>
-        <tbody>${indep.map((t, i) => `<tr><td class="num muted">${i + 1}</td><td>${team(t)}</td><td class="num"><b>${recs[t].w}-${recs[t].l}-${recs[t].t || 0}</b></td><td class="num">${r[t]?.rank ?? '—'}</td><td class="num">${recs[t].hw}-${recs[t].hl}-${recs[t].ht || 0}</td><td class="num">${recs[t].aw}-${recs[t].al}-${recs[t].at || 0}</td><td class="num">${recs[t].streak || ''}</td></tr>`).join('')}</tbody></table></div></div>` : '';
+        <tbody>${indep.map((t, i) => `<tr><td class="num muted">${i + 1}</td><td>${team(t)}</td><td class="num"><b>${wlt(recs[t])}</b></td><td class="num">${r[t]?.rank ?? '—'}</td><td class="num">${recs[t].hw}-${recs[t].hl}-${recs[t].ht || 0}</td><td class="num">${recs[t].aw}-${recs[t].al}-${recs[t].at || 0}</td><td class="num">${recs[t].streak || ''}</td></tr>`).join('')}</tbody></table></div></div>` : '';
+  // Standings are points (3 a win, 1 a tie); PB is points behind.
+  const gbText = x => (x.gb ? String(x.gb) : '—');
+  // The last five results, postseason included (the owner's call, Nov.
+  // 2026); hovering them shows the five games in the same pop-up as the
+  // poll's week records. The streak counts every game too.
+  const regDone = s.games.filter(isFinal).sort((a, b) => a.week - b.week || (DAY_ORDER[a.day] ?? 0) - (DAY_ORDER[b.day] ?? 0) || (a.order ?? 0) - (b.order ?? 0) || a.id - b.id);
+  const last5Games = t => regDone.filter(g => g.home === t || g.away === t).slice(-5);
+  const last5 = t => { const gs = last5Games(t); return gs.length ? `<span class="l5s wk-hover" data-wk="${esc(t)}" tabindex="0" aria-label="${esc(`${t}'s last ${gs.length} games. Show them`)}">${gs.map(g => { const k = resultFor(g, t); return `<span class="l5 ${k === 'W' ? 'w' : k === 'L' ? 'l' : 't'}">${k}</span>`; }).join('')}</span>` : ''; };
+  const strk = t => { const v = recs[t]?.streak || ''; return `<span class="strk ${v[0] === 'W' ? 'w' : v[0] === 'L' ? 'l' : ''}">${esc(v)}</span>`; };
+  // One conference's full table, in its colors (the AAU look, Nov. 2026).
   const card = c => {
     const st = confStandings(s, c, regRecs, r);
     const n = st.length;
@@ -237,29 +259,53 @@ export function renderStandings() {
     const sched = Object.fromEntries(st.map(x => [x.team, 0]));
     for (const g of s.games) if (g.type === 'regular' && g.confGame && g.home in sched && g.away in sched) { sched[g.home]++; sched[g.away]++; }
     const uneven = new Set(Object.values(sched)).size > 1;
-    return `<div class="card">${uneven ? `<div class="hint warn small" style="margin-bottom:8px">Conference schedules are uneven: ${Object.entries(sched).sort((a, b) => b[1] - a[1]).map(([t, n]) => `${esc(t)} ${n}`).join(', ')} conference games. This usually comes from editing games by hand; fix the games or rebuild the schedule in Settings.</div>` : ''}
-      <div class="row" style="margin-bottom:8px"><a href="${confHref(c)}">${confLogo(c, 30)}</a><h2 style="margin:0"><a class="team-link" href="${confHref(c)}">${esc(c)}</a></h2><span class="spacer"></span>
-        ${tchamp ? `<span class="badge gold">Tournament: ${esc(tchamp)}</span>` : ''}</div>
-      <div class="table-wrap"><table>
-        <thead><tr><th></th><th>Team</th><th class="num" title="Conference points: 3 for a win, 1 for a tie">Pts</th><th class="num">Conf</th><th class="num" title="Points behind the leader">PB</th><th class="num">Overall</th><th class="num">Home</th><th class="num">Away</th><th class="num">Strk</th></tr></thead>
-        <tbody>${st.map((x, i) => `<tr class="${i === size - 1 && size < n ? 'cutline' : ''}"><td class="num muted">${i + 1}</td>
-          <td>${team(x.team)}</td>
-          <td class="num"><b>${x.pts}</b></td><td class="num">${x.cw}-${x.cl}-${x.ct || 0}</td><td class="num">${x.gb || '—'}</td>
-          <td class="num">${recs[x.team].w}-${recs[x.team].l}-${recs[x.team].t || 0}</td><td class="num">${x.hw}-${x.hl}-${x.ht || 0}</td><td class="num">${x.aw}-${x.al}-${x.at || 0}</td>
-          <td class="num">${x.streak || ''}</td></tr>`).join('')}</tbody></table></div>
-      <details class="small" style="margin-top:8px"><summary class="muted">Commissioner</summary><div class="row" style="margin-top:8px">
+    const played = s.games.filter(g => g.type === 'regular' && isFinal(g)).reduce((m, g) => Math.max(m, g.week), 0);
+    return `<section class="st-card" style="${confVars(c)}">
+      ${confHead(c, played ? `Standings through week ${played} · conference points: 3 for a win, 1 for a tie` : 'Before the first game', `${champ ? `<span class="badge">Regular season: ${esc(champ)}</span>` : ''}${tchamp ? `<span class="badge gold">Tournament: ${esc(tchamp)}</span>` : ''}`)}
+      ${uneven ? `<div class="hint warn small st-pad">Conference schedules are uneven: ${Object.entries(sched).sort((a, b) => b[1] - a[1]).map(([t, n]) => `${esc(t)} ${n}`).join(', ')} conference games. This usually comes from editing games by hand; fix the games or rebuild the schedule in Settings.</div>` : ''}
+      <div class="table-wrap"><table class="st-table">
+        <thead><tr><th class="num">#</th><th>Team</th><th class="num st-c" title="Conference points: 3 for a win, 1 for a tie">Pts</th><th class="num st-c">Conf</th><th class="num st-c" title="Points behind the leader">PB</th><th class="num">Overall</th><th class="num" title="Goals for and against">GF–GA</th><th class="num">Home</th><th class="num">Away</th><th class="num">Strk</th><th>Last 5</th></tr></thead>
+        <tbody>${st.map((x, i) => `<tr class="${i === size - 1 && size < n ? 'cutline' : ''}"><td class="num st-pos">${i + 1}</td>
+          <td>${team(x.team, { size: 26 })}</td>
+          <td class="num st-c"><b>${x.pts}</b></td><td class="num st-c">${x.cw}-${x.cl}-${x.ct || 0}</td><td class="num st-c">${gbText(x)}</td>
+          <td class="num">${wlt(recs[x.team])}</td><td class="num muted">${recs[x.team].rs}–${recs[x.team].ra}</td><td class="num muted">${x.hw}-${x.hl}-${x.ht || 0}</td><td class="num muted">${x.aw}-${x.al}-${x.at || 0}</td>
+          <td class="num">${strk(x.team)}</td><td>${last5(x.team)}</td></tr>`).join('')}</tbody></table></div>
+      <div class="st-legend"><span><b class="st-rk">5</b> Top ${pollSizeOf(s)} rank</span><span><span class="l5 w">W</span> Win</span><span><span class="l5 l">L</span> Loss</span><span><span class="l5 t">T</span> Tie</span>${size && size < n ? `<span><i class="st-cut"></i> Conference tournament cut (top ${size})</span>` : ''}</div>
+      <details class="small st-pad st-comm"><summary class="muted">Commissioner</summary><div class="row" style="margin-top:8px">
         <label class="field">Regular-season champion <select data-champ="${esc(c)}"><option value="">Automatic (${esc(regSeasonChamps({ ...s, overrides: {} }, c, regRecs, r).join(' & ') || '—')})</option>${teamOptions(s.overrides.regChamps?.[c], { blank: false, list: st.map(x => x.team) })}</select></label>
         <label class="field">Game days <select data-weekend="${esc(c)}">${CONF_WEEKENDS.map(([k, l]) => `<option value="${k}" ${(s.settings.confWeekend?.[c] || 'tsu') === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
         <label class="field">Tournament format <select data-format="${esc(c)}" ${canSize ? '' : 'disabled'}>${CONF_FORMATS.map(([k, l]) => `<option value="${k}" ${(s.settings.confFormat?.[c] || 'single') === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
         <label class="field">Tournament teams <select data-size="${esc(c)}" ${canSize ? '' : 'disabled'}>${[0, ...Array.from({ length: Math.max(0, Math.min(n, 16) - 1) }, (_, i) => i + 2)].map(k => `<option value="${k}" ${k === size ? 'selected' : ''}>${k ? `Top ${k}` : 'No tournament'}</option>`).join('')}</select></label>
       </div>${canSize ? '' : `<p class="muted">Tournament size and format are locked once the tournaments are set. You can still switch a tournament's format on the Postseason page until its first game.</p>`}</details>
-    </div>`;
+    </section>`;
   };
+  // All conferences: a compact card per conference (place, team, conference
+  // record, games behind, overall); a card's header opens the full table.
+  const compact = c => {
+    const st = confStandings(s, c, regRecs, r), n = st.length;
+    const size = Math.min(n, s.settings.confTourney?.[c] ?? defaultConfTourneySize(n));
+    return `<section class="st-card compact" style="${confVars(c)}">${confHead(c, '', '', `data-stc="${esc(c)}"`, 28)}
+      <div class="table-wrap"><table class="st-table"><thead><tr><th></th><th>Team</th><th class="num st-c">Pts</th><th class="num st-c">Conf</th><th class="num">Overall</th></tr></thead>
+        <tbody>${st.map((x, i) => `<tr class="${i === size - 1 && size < n ? 'cutline' : ''}"><td class="num st-pos">${i + 1}</td><td>${team(x.team, { size: 22 })}</td><td class="num st-c"><b>${x.pts}</b></td><td class="num st-c">${x.cw}-${x.cl}-${x.ct || 0}</td><td class="num muted">${wlt(recs[x.team])}</td></tr>`).join('')}</tbody></table></div></section>`;
+  };
+  const pick = confs.includes(ui.standConf) || (ui.standConf === INDEPENDENT && indep.length) ? ui.standConf : 'all';
+  const side = (v, label, logo, cvars = '') => `<button type="button" class="st-link ${pick === v ? 'active' : ''}" data-stc="${esc(v)}" aria-pressed="${pick === v}" style="${cvars}">${logo}<span>${label}</span></button>`;
   app.innerHTML = `
     <div class="section-head"><h1>${seasonLabel(s.year)} Standings</h1><span class="muted">Ordered by conference points: 3 for a win, 1 for a tie. The line marks the conference tournament cut, where a conference has one.</span></div>
-    <details class="card small" style="margin-bottom:16px"><summary><b>Tiebreakers</b></summary><ol style="margin:8px 0 0 18px">${TIEBREAKERS.map(t => `<li>${esc(t)}</li>`).join('')}</ol>
-      <p class="muted" style="margin:6px 0 0">The same order seeds the conference tournaments.</p></details>
-    <div class="grid wide">${confs.map(card).join('')}${indepCard}</div>`;
+    <div class="st-layout">
+      <aside class="st-side" aria-label="Conferences"><span class="st-kick">Conferences</span>
+        ${side('all', 'All conferences', '<span class="st-grid-ic" aria-hidden="true"><i></i><i></i><i></i><i></i></span>')}
+        ${confs.map(c => side(c, esc(c), `<span class="st-tile">${confLogo(c, 26)}</span>`, confVars(c))).join('')}
+        ${indep.length ? side(INDEPENDENT, 'Independents', `<span class="st-tile">${confLogo(INDEPENDENT, 26)}</span>`) : ''}
+      </aside>
+      <div class="st-content">
+        ${pick === 'all' ? `<div class="st-grid">${confs.map(compact).join('')}${indepCard}</div>` : `${pick === INDEPENDENT ? indepCard : card(pick)}
+        <details class="card small"><summary><b>Tiebreakers</b></summary><ol style="margin:8px 0 0 18px">${TIEBREAKERS.map(t => `<li>${esc(t)}</li>`).join('')}</ol>
+          <p class="muted" style="margin:6px 0 0">The same order seeds the conference tournaments.</p></details>`}
+      </div>
+    </div>`;
+  $$('[data-stc]').forEach(b => (b.onclick = e => { if (e.target.closest('a')) return; ui.standConf = b.dataset.stc; renderStandings(); window.scrollTo(0, 0); }));
+  bindWeekPopups(app, s, last5Games, null, 'Last 5 games');
   $$('[data-champ]').forEach(sel => (sel.onchange = () => {
     s.overrides.regChamps ||= {};
     if (sel.value) s.overrides.regChamps[sel.dataset.champ] = sel.value; else delete s.overrides.regChamps[sel.dataset.champ];
@@ -297,20 +343,20 @@ export function renderRankings() {
 
 // Hover (or focus, or tap) a team's record for the week to see the games:
 // a small card with each opponent, its rank at the time, and the score.
-function weekPopupHtml(s, t, games, key) {
-  const title = key === 'final' ? 'National Tournament' : key === postWeeks(s).conf ? 'Conference tournament' : `Week ${key}`;
+function weekPopupHtml(s, t, games, key, heading = null) {
+  const title = heading ? heading : key === 'final' ? 'National Tournament' : key === postWeeks(s).conf ? 'Conference tournament' : `Week ${key}`;
   return `<div class="wkp-head">${logoImg(teamInfo(t), 18)}<b>${esc(t)}</b><span class="muted">${title}</span></div>
     ${games.map(g => {
       const home = g.home === t, opp = home ? g.away : g.home, res = resultFor(g, t), note = g.pk ? `PK ${home ? g.pk.home : g.pk.away}-${home ? g.pk.away : g.pk.home}` : periodNote(g);
       const at = (g.site || (g.neutral ? null : g.home)) === opp ? 'at' : 'vs.';
       const r = cache.ranksAt(g.week)[opp], inn = Math.max(g.homeLine.length, g.awayLine.length);
       return `<div class="wkp-row"><span class="wkp-day">${esc(g.day)}</span><span class="wkp-vs">${at}</span><span class="pt-logo wkp-logo">${logoImg(teamInfo(opp), 18)}</span>
-        <span class="wkp-opp">${r ? `<span class="muted">#${r}</span> ` : ''}${esc(opp)}</span>
+        <span class="wkp-opp">${r ? `<span class="muted">#${r}</span> ` : ''}${esc(opp)}${g.type !== 'regular' && g.label ? ` <span class="muted wkp-round">· ${esc(g.label.split(' · ').slice(-1)[0])}</span>` : ''}</span>
         <span class="wkp-res"><b class="${res === 'W' ? 'w' : res === 'L' ? 'l' : ''}">${res}</b> ${home ? g.homeR : g.awayR}-${home ? g.awayR : g.homeR}${note ? ` <span class="muted">(${note})</span>` : ''}</span></div>`;
     }).join('')}`;
 }
 
-function bindWeekPopups(root, s, weekGames, key) {
+function bindWeekPopups(root, s, weekGames, key, heading = null) {
   document.querySelector('.wk-pop')?.remove();
   const pop = document.createElement('div');
   pop.className = 'wk-pop'; pop.setAttribute('role', 'tooltip'); pop.hidden = true;
@@ -321,7 +367,7 @@ function bindWeekPopups(root, s, weekGames, key) {
     const t = el.dataset.wk, gs = weekGames(t);
     if (!gs.length) return;
     owner = el;
-    pop.innerHTML = weekPopupHtml(s, t, gs, key);
+    pop.innerHTML = weekPopupHtml(s, t, gs, key, heading);
     pop.hidden = false;
     // Below the record, or above it when there's no room; kept on screen.
     const r = el.getBoundingClientRect(), w = pop.offsetWidth, h = pop.offsetHeight;
@@ -376,28 +422,48 @@ function renderPollTab(root) {
     return `${n('W')}-${n('L')}${n('T') ? `-${n('T')}` : ''}`;
   };
   const dropped = prevKey === undefined ? [] : Object.entries(prev).filter(([t]) => !inNow.has(t)).sort((a, b) => a[1] - b[1]).map(([t, was]) => ({ team: t, was, week: weekRec(t) }));
-  const mv = (t, i) => {
-    const p = prev[t];
-    if (prevKey === undefined) return '';
-    if (!p) return '<span class="move up">NEW</span>';
-    const d = p - (i + 1);
-    return d > 0 ? `<span class="move up">▲${d}</span>` : d < 0 ? `<span class="move down">▼${-d}</span>` : '<span class="muted">—</span>';
-  };
+  // The AAU look (Nov. 2026): the No. 1 team's card in its colors, then the
+  // poll beside a column of the week's movers, others receiving votes and the
+  // teams that dropped out.
+  const top = !editing && rows[0];
+  const hero = top ? (() => {
+    const t = teamInfo(top.team) || {}, bg = t.color || '#0b1f3a', ink = readableOn(bg), acc = readableOn(bg, t.altColor);
+    const was = prev[top.team];
+    const kicker = key === 0 ? 'Preseason No. 1' : key === 'final' ? (s.post?.mcws?.champion === top.team ? 'National champion · final No. 1' : 'Final No. 1') : prevKey === undefined ? 'No. 1' : was === 1 ? 'No. 1 again this week' : was ? `Up from No. ${was} to No. 1` : 'New No. 1';
+    const line = [esc(top.record || ''), esc(t.conference || '')].filter(Boolean).join(' · ');
+    return `<a class="poll-hero" href="${teamHref(top.team)}" style="--hb:${esc(bg)};--hi:${ink};--ha:${acc}">
+      <span class="ph-rank">1</span><span class="ph-logo">${logoImg(t, 72)}</span>
+      <span class="ph-main"><span class="ph-kick">${esc(kicker)}</span><span class="ph-name">${esc(top.team)}${t.mascot ? ` ${esc(t.mascot)}` : ''}</span><span class="ph-line">${line}</span></span>
+      <span class="ph-stats">${top.pts != null ? `<span><b>${top.pts}</b><i>Points</i></span>` : ''}${top.fp ? `<span><b>${top.fp}</b><i>First-place votes</i></span>` : ''}</span></a>`;
+  })() : '';
+  const moves = prevKey === undefined ? [] : rows.map((x, i) => ({ team: x.team, d: prev[x.team] ? prev[x.team] - (i + 1) : null, now: i + 1 })).filter(m => m.d).sort((a, b) => Math.abs(b.d) - Math.abs(a.d) || a.now - b.now).slice(0, 4);
+  const title = key === 'final' ? 'Final poll' : key === 0 ? 'Preseason poll' : key === postWeeks(s).conf ? 'After the conference tournaments' : `Week ${key}`;
+  const confShort = c => esc(confInfo(c)?.abbr && c.length > 18 ? c.replace(/ Conference$/, '') : c || '');
   root.innerHTML = `
     <div class="chips">${weeks.map(w => `<button class="chip ${String(w) === String(key) ? 'active' : ''}" data-pw="${w}">${label(w)}</button>`).join('')}</div>
-    <div class="card">
-      <div class="row" style="margin-bottom:10px"><h2 style="margin:0">${key === 'final' ? 'Final poll' : key === 0 ? 'Preseason poll' : key === postWeeks(s).conf ? 'Poll after conference tournaments' : `Week ${key} poll`}</h2>
-        ${poll.edited ? '<span class="badge manual">Commissioner edited</span>' : ''}<span class="spacer"></span>
-        ${editing ? '<button class="btn" id="p-cancel">Cancel</button><button class="btn primary" id="p-save">Save poll</button>' : '<button class="btn" id="p-edit">Edit poll</button><button class="btn" id="p-regen">Regenerate</button>'}</div>
-      <div class="table-wrap"><table class="poll-table">
-        <thead><tr><th class="num">#</th><th>Team</th><th class="num">Record</th>${key === 0 ? '' : `<th class="num" title="${key === 'final' ? 'National Tournament record' : "Record in this poll's week"}">${key === 'final' ? 'Nat. Tourn.' : 'This week'}</th>`}${editing ? '<th></th>' : '<th class="num">Points</th><th class="num">Prev</th><th></th>'}</tr></thead>
-        <tbody>${rows.map((x, i) => `<tr><td class="pt-rank" style="${rankBlock(x.team)}">${i + 1}</td><td><span class="pt-team"><span class="pt-logo">${logoImg(teamInfo(x.team), 24)}</span><a class="team-link" href="${teamHref(x.team)}">${esc(x.team)}</a>${!editing && x.fp ? ` <span class="muted small">(${x.fp})</span>` : ''}</span></td><td class="num muted">${esc(x.record || '')}</td>${key === 0 ? '' : (() => { const wr = weekRec(x.team); if (!wr) return '<td class="num muted">—</td>'; const [w, l] = wr.split('-').map(Number); return `<td class="num"><span class="wk-rec wk-hover ${w > l ? 'up' : w < l ? 'down' : ''}" data-wk="${esc(x.team)}" tabindex="0" aria-label="${esc(`${x.team} went ${wr}. Show the games`)}">${wr}</span></td>`; })()}
-          ${editing ? `<td class="num" style="white-space:nowrap"><button class="btn sm" data-up="${i}" ${i ? '' : 'disabled'}>▲</button> <button class="btn sm" data-down="${i}" ${i < rows.length - 1 ? '' : 'disabled'}>▼</button> <button class="btn sm danger" data-rm="${i}">✕</button></td>`
-          : `<td class="num">${x.pts ?? ''}</td><td class="num muted">${prevKey !== undefined ? prev[x.team] ?? 'NR' : ''}</td><td class="num">${mv(x.team, i)}</td>`}</tr>`).join('')}</tbody></table></div>
-      ${editing ? `<div class="row" style="margin-top:10px"><select id="p-add">${teamOptions('', { blankLabel: 'Add a team…', list: teamNames().filter(t => !rows.some(r => r.team === t)) })}</select><span class="muted small">Added teams go to the bottom; move them up with ▲. The poll keeps ${poll.size || poll.ranks.length} teams.</span></div>`
-      : `${dropped.length ? `<div class="dropped"><b>Dropped out:</b> ${dropped.map(d => `<span class="drop-item">${team(d.team, { rank: false, size: 16 })} <span class="muted small">was #${d.was}${d.week ? `, ${d.week} ${key === 'final' ? 'in the National Tournament' : 'this week'}` : ''}</span></span>`).join('')}</div>` : prevKey !== undefined ? '<p class="small muted" style="margin-top:10px">No teams dropped out this week.</p>' : ''}
-        ${poll.others?.length ? `<p class="small muted" style="margin-top:10px"><b>Others receiving votes:</b> ${poll.others.map(o => `${esc(o.team)} ${o.pts}`).join(', ')}</p>` : ''}`}
-      <p class="small muted">${poll.ballots ? `${poll.voters} voters` : `${poll.voters || 40} simulated voters`}. First-place votes in parentheses. ${poll.ranks.length !== pollSizeOf(s) ? `This poll ranks ${poll.ranks.length} teams; polls released from now on rank ${pollSizeOf(s)}. ` : ''}Polls come out when a week's games are all final.</p>
+    <div class="poll-headline"><span class="poll-kick">${esc(title)}</span><h2>AAU Top ${poll.size || poll.ranks.length}</h2>${poll.edited ? '<span class="badge manual">Commissioner edited</span>' : ''}<span class="spacer"></span>
+      ${editing ? '<button class="btn" id="p-cancel">Cancel</button><button class="btn primary" id="p-save">Save poll</button>' : '<button class="btn" id="p-edit">Edit poll</button><button class="btn" id="p-regen">Regenerate</button>'}</div>
+    ${hero}
+    <div class="poll-cols">
+    <section class="poll-board">
+      <div class="pb-row pb-head"><span>Rank</span><span>Move</span><span>Team</span><span class="num">Record</span>${key === 0 ? '<span></span>' : `<span class="num" title="${key === 'final' ? 'National tournament record' : "Record in this poll's week"}">${key === 'final' ? 'Nat. Tourn.' : 'This week'}</span>`}<span class="num">${editing ? '' : 'Pts'}</span><span class="num">${editing ? '' : 'Prev'}</span></div>
+      ${rows.map((x, i) => { const t = teamInfo(x.team) || {}; const p0 = prev[x.team]; const d = p0 ? p0 - (i + 1) : null;
+        const mv = prevKey === undefined ? '' : !p0 ? '<span class="move new">NEW</span>' : d > 0 ? `<span class="move up">▲ ${d}</span>` : d < 0 ? `<span class="move down">▼ ${-d}</span>` : '<span class="muted">—</span>';
+        const wr = weekRec(x.team); let wk = '<span class="num muted">—</span>';
+        if (key === 0) wk = '<span></span>'; else if (wr) { const [w, l] = wr.split('-').map(Number); wk = `<span class="num"><span class="wk-rec wk-hover ${w > l ? 'up' : w < l ? 'down' : ''}" data-wk="${esc(x.team)}" tabindex="0" aria-label="${esc(`${x.team} went ${wr}. Show the games`)}">${wr}</span></span>`; }
+        return `<div class="pb-row"><span class="pb-rank">${i + 1}</span><span class="pb-move">${mv}</span>
+          <span class="pb-team"><span class="pb-logo">${logoImg(t, 32)}</span><span class="pb-name"><span class="pb-n1"><a class="team-link" href="${teamHref(x.team)}">${esc(x.team)}</a>${!editing && x.fp ? ` <span class="muted small">(${x.fp})</span>` : ''}</span><small>${confShort(t.conference)}</small></span></span>
+          <span class="num pb-rec">${esc(x.record || '')}</span>${wk}
+          ${editing ? `<span class="pb-edit"><button class="btn sm" data-up="${i}" ${i ? '' : 'disabled'} aria-label="Move up">▲</button> <button class="btn sm" data-down="${i}" ${i < rows.length - 1 ? '' : 'disabled'} aria-label="Move down">▼</button> <button class="btn sm danger" data-rm="${i}" aria-label="Remove">✕</button></span>`
+            : `<span class="num pb-pts">${x.pts ?? ''}</span><span class="num muted">${prevKey !== undefined ? p0 ?? '—' : ''}</span>`}</div>`; }).join('')}
+      ${editing ? `<div class="row pb-add"><select id="p-add">${teamOptions('', { blankLabel: 'Add a team…', list: teamNames().filter(t => !rows.some(r => r.team === t)) })}</select><span class="muted small">Added teams go to the bottom; move them up with ▲. The poll keeps ${poll.size || poll.ranks.length} teams.</span></div>` : ''}
+      <p class="small muted pb-note">${poll.ballots ? `${poll.voters} voters` : `${poll.voters || 40} simulated voters`}. First-place votes in parentheses. ${poll.ranks.length !== pollSizeOf(s) ? `This poll ranks ${poll.ranks.length} teams; polls released from now on rank ${pollSizeOf(s)}. ` : ''}Polls come out when a week's games are all final.</p>
+    </section>
+    <aside class="poll-side">
+      ${moves.length ? `<section class="ps-box"><h3>Biggest movers</h3>${moves.map(m => `<div class="ps-mv"><span>${logoImg(teamInfo(m.team), 20)} ${esc(m.team)}</span><span class="move ${m.d > 0 ? 'up' : 'down'}">${m.d > 0 ? '▲' : '▼'} ${Math.abs(m.d)} to No. ${m.now}</span></div>`).join('')}</section>` : ''}
+      <section class="ps-box"><h3>Receiving votes</h3>${poll.others?.length ? `<p>${poll.others.map(o => `${esc(o.team)} ${o.pts}`).join(', ')}</p>` : '<p class="muted">None this week.</p>'}</section>
+      ${prevKey !== undefined ? `<section class="ps-box"><h3>Dropped out</h3>${dropped.length ? dropped.map(d => `<div class="ps-mv"><span>${logoImg(teamInfo(d.team), 20)} ${esc(d.team)}</span><span class="muted small">was No. ${d.was}${d.week ? `, ${d.week}` : ''}</span></div>`).join('') : '<p class="muted">Nobody this week.</p>'}</section>` : ''}
+    </aside>
     </div>
     ${voterPanel(s, poll)}`;
   bindWeekPopups(root, s, weekGames, key);
@@ -566,8 +632,11 @@ function renderPowerTab(root) {
 // championship to the right. Cards show R/H/E; click for the line score.
 const BK = { CW: 300, COLW: 340, H: 90, SLOT: 104, HEAD: 30, SEC_GAP: 34 };
 
-function eventBracket(ev, seedFn, { stack = false, colw = BK.COLW } = {}) {
+function eventBracket(ev, seedFn, { stack = false, colw = BK.COLW, cw = BK.CW, h = BK.H, slot: SLOTW = BK.SLOT, mirror = false, cls = '' } = {}) {
+  // `mirror` draws the bracket right to left (the right-hand regions of the
+  // full bracket); `cw`, `h` and `slot` make the boxes smaller.
   const COLW = colw;
+  const BKX = { ...BK, CW: cw, H: h, SLOT: SLOTW };
   const s = S();
   const rankOn = !!s.post?.confT && Object.values(s.post.confT).includes(ev); // poll rankings on conference tournament brackets only
   ensureLayout(ev);
@@ -592,7 +661,7 @@ function eventBracket(ev, seedFn, { stack = false, colw = BK.COLW } = {}) {
     const place = n => {
       if (pos[n.key]) return pos[n.key].y;
       const ks = kids(n);
-      const y = ks.length ? ks.map(place).reduce((a, b) => a + b, 0) / ks.length : secTop + (slot++) * BK.SLOT;
+      const y = ks.length ? ks.map(place).reduce((a, b) => a + b, 0) / ks.length : secTop + (slot++) * BKX.SLOT;
       pos[n.key] = { x: n.col * COLW, y };
       maxCol = Math.max(maxCol, n.col);
       return y;
@@ -606,14 +675,14 @@ function eventBracket(ev, seedFn, { stack = false, colw = BK.COLW } = {}) {
       heads.push({ x: c * COLW, y: secTop - BK.HEAD, text: byDay ? DAY_NAMES[first.day] || first.day : first.label.replace(/ \(.*\)$/, ''), day: byDay ? null : first.day });
     }
     if (double) heads.push({ x: 0, y: top, text: sec === 'W' ? 'Winners bracket' : 'Elimination bracket', section: true });
-    top = secTop + slot * BK.SLOT;
+    top = secTop + slot * BKX.SLOT;
   }
   // Championship column.
   const finals = ev.nodes.filter(n => secOf(n) === 'F');
   if (finals.length && !sections.length && stack) {
     // A best-of-three series stacked top to bottom (the Frozen Four Championship Series).
     finals.forEach((n, i) => {
-      const step = BK.H + BK.HEAD + 12;
+      const step = BKX.H + BK.HEAD + 12;
       pos[n.key] = { x: 0, y: BK.HEAD + i * step };
       heads.push({ x: 0, y: i * step, text: `Game ${i + 1}`, day: n.day });
     });
@@ -623,24 +692,25 @@ function eventBracket(ev, seedFn, { stack = false, colw = BK.COLW } = {}) {
       pos[n.key] = { x: i * COLW, y: BK.HEAD };
       heads.push({ x: i * COLW, y: 0, text: `Game ${i + 1}`, day: n.day });
     });
-    top = BK.HEAD + BK.SLOT;
+    top = BK.HEAD + BKX.SLOT;
   } else if (finals.length) {
     const x = sections.length ? (maxCol + 1) * COLW : 0;
     const feeders = [finals[0].a, finals[0].b].map(r => r && pos[r.w || r.l]).filter(Boolean);
     const mid = feeders.length ? feeders.reduce((a, p) => a + p.y, 0) / feeders.length : BK.HEAD;
-    const start = Math.max(BK.HEAD, mid - ((finals.length - 1) * BK.SLOT) / 2);
-    finals.forEach((n, i) => { pos[n.key] = { x, y: start + i * BK.SLOT }; });
+    const start = Math.max(BK.HEAD, mid - ((finals.length - 1) * BKX.SLOT) / 2);
+    finals.forEach((n, i) => { pos[n.key] = { x, y: start + i * BKX.SLOT }; });
     const finalsTitle = ev.id?.startsWith('reg-') ? 'Region final' : ev.id?.startsWith('sup-') ? 'Super regional' : ev.kind === 'mcws' ? 'National final' : ev.kind === 'series' ? 'Best of three' : ev.bracket ? 'Bracket final' : ev.kind === 'regional' || ev.kind === 'de' ? (ev.id.startsWith('reg') ? 'Regional final' : 'Final') : 'Championship';
     heads.push({ x, y: start - BK.HEAD, text: finalsTitle, day: ev.kind === 'series' ? null : finals[0].day });
-    top = Math.max(top, start + finals.length * BK.SLOT);
+    top = Math.max(top, start + finals.length * BKX.SLOT);
   }
-  const width = Math.max(...Object.values(pos).map(p => p.x)) + BK.CW;
-  const height = Math.max(...Object.values(pos).map(p => p.y)) + BK.H + 4;
+  const width = Math.max(...Object.values(pos).map(p => p.x)) + BKX.CW;
+  const height = Math.max(...Object.values(pos).map(p => p.y)) + BKX.H + 4;
 
+  if (mirror) { for (const k of Object.keys(pos)) pos[k] = { ...pos[k], x: width - BKX.CW - pos[k].x }; for (const hd of heads) if (!hd.section) hd.x = width - BKX.CW - hd.x; }
   // Connector lines: from each feeding game into the game it feeds.
   const lines = [];
   const link = (from, to) => {
-    const x1 = from.x + BK.CW, y1 = from.y + BK.H / 2, x2 = to.x, y2 = to.y + BK.H / 2, mx = x1 + (x2 - x1) / 2;
+    const x1 = mirror ? from.x : from.x + BKX.CW, y1 = from.y + BKX.H / 2, x2 = mirror ? to.x + BKX.CW : to.x, y2 = to.y + BKX.H / 2, mx = x1 + (x2 - x1) / 2;
     lines.push(`<path d="M${x1},${y1} H${mx} V${y2} H${x2}" />`);
   };
   for (const n of ev.nodes) {
@@ -663,10 +733,10 @@ function eventBracket(ev, seedFn, { stack = false, colw = BK.COLW } = {}) {
     const slotText = (t, ref) => t || (refLabel(ev, ref) ? { text: refLabel(ev, ref) } : null);
     return placeholderCard(label, [slotText(a, node.a), slotText(b, node.b)], seedFn, { ranks: rankOn, faded: !!node.cond && !needed && !!decided, note: node.cond ? (decided && !needed ? 'Not needed' : 'If necessary') : '' });
   };
-  return `<div class="bk-scroll"><div class="bk" style="width:${width}px;height:${height}px">
+  return `<div class="bk-scroll"><div class="bk ${cls}" style="width:${width}px;height:${height}px">
     <svg class="bk-lines" width="${width}" height="${height}" aria-hidden="true">${lines.join('')}</svg>
-    ${heads.map(h => `<div class="bk-head ${h.section ? 'bk-sec' : ''}" style="left:${h.x}px;top:${h.y}px;${h.section ? '' : `width:${BK.CW}px`}">${esc(h.text)}${h.day ? ` <span class="muted">· ${esc(DAY_NAMES[h.day] || h.day)}</span>` : ''}</div>`).join('')}
-    ${ev.nodes.map(n => pos[n.key] && !hidden.has(n.key) ? `<div class="bk-node" style="left:${pos[n.key].x}px;top:${pos[n.key].y}px;width:${BK.CW}px;height:${BK.H}px">${cell(n)}</div>` : '').join('')}
+    ${heads.map(h => `<div class="bk-head ${h.section ? 'bk-sec' : ''}" style="left:${h.x}px;top:${h.y}px;${h.section ? '' : `width:${BKX.CW}px`}">${esc(h.text)}${h.day ? ` <span class="muted">· ${esc(DAY_NAMES[h.day] || h.day)}</span>` : ''}</div>`).join('')}
+    ${ev.nodes.map(n => pos[n.key] && !hidden.has(n.key) ? `<div class="bk-node" style="left:${pos[n.key].x}px;top:${pos[n.key].y}px;width:${BKX.CW}px;height:${BKX.H}px">${cell(n)}</div>` : '').join('')}
   </div></div>`;
 }
 
@@ -697,8 +767,9 @@ export function renderPostseason(arg = '') {
 function renderPostseasonPage() {
   const s = S(), p = s.post || {};
   const cfg = ncaaConfig(s);
-  const defaultTab = { regular: 'conf', conf: 'conf', selection: 'field', regionals: 'regionals', supers: 'supers', mcws: 'mcws', complete: 'mcws' }[s.phase];
-  const tabs = { conf: 'Conference tournaments', field: 'Selection', ...(noRegionals(cfg) ? {} : { regionals: 'Regions' }), ...(hasSupers(cfg) ? { supers: 'Super regionals' } : {}), participants: 'Participants', mcws: s.settings.mcwsName };
+  const board = !noRegionals(cfg) && !hasSupers(cfg) && (p.regionals?.length || 0) >= 2;
+  const defaultTab = { regular: 'conf', conf: 'conf', selection: 'field', regionals: board ? 'bracket' : 'regionals', supers: 'supers', mcws: board ? 'bracket' : 'mcws', complete: board ? 'bracket' : 'mcws' }[s.phase];
+  const tabs = { conf: 'Conference tournaments', field: 'Selection', ...(board ? { bracket: 'Full bracket' } : {}), ...(noRegionals(cfg) ? {} : { regionals: 'Regions' }), ...(hasSupers(cfg) ? { supers: 'Super regionals' } : {}), participants: 'Participants', mcws: s.settings.mcwsName };
   if (!ui.postTab || !tabs[ui.postTab]) ui.postTab = defaultTab;
   const left = s.games.filter(g => g.type !== 'regular' && !isFinal(g)).length + (s.phase === 'regular' ? 1 : 0);
   app.innerHTML = `
@@ -713,7 +784,7 @@ function renderPostseasonPage() {
     simAndReport(g => g.type !== 'regular', 'in the postseason', { autoLock: true });
   };
   const root = $('#ps');
-  ({ conf: renderConfTourneys, field: renderField, regionals: renderRegionals, supers: renderSupers, participants: renderParticipants, mcws: renderMcws })[ui.postTab](root);
+  ({ conf: renderConfTourneys, field: renderField, bracket: renderBoard, regionals: renderRegionals, supers: renderSupers, participants: renderParticipants, mcws: renderMcws })[ui.postTab](root);
   bindGameCards(root);
 }
 
@@ -997,6 +1068,51 @@ function regionalPreview(s, field, podList, r) {
     <div class="small muted" style="margin-bottom:10px">Region seed, then national seed · ${IX()} rank. ${firstRound ? `<b class="warn-text">${firstRound} first-round matchup${firstRound > 1 ? 's' : ''} between conference rivals (no swap could avoid ${firstRound > 1 ? 'them' : 'it'}).</b>` : 'No conference rivals meet in the first round.'} ${clashes ? `${clashes} region${clashes > 1 ? 's have' : ' has'} conference rivals in it.` : ''} Strongest to weakest regional: ${spread.toFixed(1)} OVR.</div>
     <div class="reg-prev-list">${boxes}</div></aside>`;
 }
+
+// The whole National Tournament on one board, like a TV bracket (the AAU
+// look, Nov. 2026): regions in the corners, the right-hand ones drawn right to
+// left, and the finals in a navy panel in the middle. Regions whose winners
+// meet in a semifinal share a side (region i meets region n-1-i).
+function renderBoard(root) {
+  const s = S(), p = s.post || {}, regs = p.regionals || [], n = regs.length;
+  const name = esc(s.settings.mcwsName), v = mcwsVenue(s);
+  const order = n === 4 ? [[regs[0], regs[3]], [regs[1], regs[2]]] : [regs.slice(0, Math.ceil(n / 2)), regs.slice(Math.ceil(n / 2))];
+  const size = { cw: 204, colw: 220, h: 90, slot: 98 };
+  const region = (ev, mirror) => {
+    const seed = t => { const i = ev.seeds.indexOf(t); return i >= 0 ? i + 1 : null; };
+    const top = ev.top || ev.host, c = teamInfo(top)?.color || '#0b1f3a';
+    return `<div class="bb-region ${mirror ? 'mirror' : ''}" style="--rc:${esc(c)}"><div class="bb-rhead"><b>${esc(ev.name)}</b>${ev.champion ? `<span class="muted small">Winner: ${esc(ev.champion)}</span>` : ''}</div>${eventBracket(ev, seed, { ...size, mirror })}</div>`;
+  };
+  const champ = p.mcws?.champion, ci = champ ? teamInfo(champ) : null;
+  const finals = `<div class="bb-finals"><img class="bb-mark" src="img/aau-block.svg" alt=""><div class="bb-ftitle">${name}</div><div class="bb-fsite">${esc(v.stadium || '')}${v.city ? ` · ${esc(v.city)}` : ''}</div>
+    ${p.mcws ? p.mcws.nodes.map((nd, i, all) => {
+      const g = nd.gameId && s.games.find(x => x.id === nd.gameId), label = nd.code || nd.label, sd = t => shownSeed(s, t);
+      const [a, b] = nodeTeams(p.mcws, nd), slot = (t, ref) => t || (refLabel(p.mcws, ref) ? { text: refLabel(p.mcws, ref) } : null);
+      return `<div class="bb-fgame ${i === all.length - 1 ? 'last' : ''}">${g ? compactCard({ ...g, label }, sd) : placeholderCard(label, [slot(a, nd.a), slot(b, nd.b)], sd)}</div>`;
+    }).join('') : `<p class="bb-wait">The region winners meet here.</p>`}
+    ${champ ? `<div class="bb-champ"><span class="bb-clogo">${logoImg(ci, 64)}</span><span class="bb-ckick">${seasonLabel(s.year)} National Champion</span><span class="bb-cname">${esc(champ)}</span></div>` : ''}</div>`;
+  root.innerHTML = `<div class="bb-scroll"><div class="bb">
+    <div class="bb-side">${order[0].map(ev => region(ev, false)).join('')}</div>
+    ${finals}
+    <div class="bb-side">${order[1].map(ev => region(ev, true)).join('')}</div></div></div>
+    <p class="small muted">Seeds inside a region are regional seeds; the ${name} shows national seeds. Click a game for its box score.</p>`;
+  fitBoard(root);
+}
+// Size the board to the window (see below). It refits when the window
+// changes size.
+function fitBoard(root) {
+  const bb = $('.bb', root), box = $('.bb-scroll', root);
+  if (!bb || !box) return;
+  bb.style.zoom = 1;
+  // Too wide: shrink to fit (down to 60%). Room to spare: grow a little (up
+  // to 115%) while the whole board still fits on screen, so a small field
+  // like 12 teams doesn't blow up.
+  const byW = (box.clientWidth - 2) / bb.scrollWidth, byH = (window.innerHeight - 260) / bb.scrollHeight;
+  const z = byW < 1 ? Math.max(0.6, byW) : Math.max(1, Math.min(1.15, byW, byH));
+  bb.style.zoom = z.toFixed(3);
+}
+let boardResize = null;
+window.addEventListener('resize', () => { clearTimeout(boardResize); boardResize = setTimeout(() => { const r = document.querySelector('.bb')?.closest('#ps'); if (r) fitBoard(r); }, 120); });
 
 function renderRegionals(root) {
   const s = S(), p = s.post || {};

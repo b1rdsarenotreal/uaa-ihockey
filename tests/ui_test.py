@@ -66,7 +66,7 @@ with sync_playwright() as p:
     assert "PIM" in t and "3rd" in t and "tie" in t.lower() and "FINAL/OT" in t.upper() and "Oct." in t, t
     shot(pg, "b-box"); pg.keyboard.press("Escape")
     t = visit(pg, "#/standings")
-    assert "Pts" in t
+    assert "PTS" in t.upper()
 
     # Play the season; announce the field by hand.
     for _ in range(40):

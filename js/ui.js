@@ -1,16 +1,16 @@
 // Shared UI state and pieces used by every page: the league, saving,
 // team labels and logos, game cards, and the game editor.
 
-import { saveLeague } from './store.js?v=20261111234538';
-import { logoFor } from './logos.js?v=20261111234538';
-import { LOGO_ALIASES } from './data.js?v=20261111234538';
-import { ovr, winProbability, matchOdds, isKnockout, QUARTERS, OT, OT_PERIODS } from './sim.js?v=20261111234538';
-import { records, isFinal, winnerOf, resultFor, isTie, sameConf } from './standings.js?v=20261111234538';
-import { latestPoll, pollRankMap } from './polls.js?v=20261111234538';
-import { afterChange, applyResult, clearResult, simResult, deleteGame, weekName, estimateHE } from './league.js?v=20261111234538';
-import { regWeeksOf, shownSeed, regionalSeed, mcwsVenue, gameVenue } from './postseason.js?v=20261111234538';
-import { DAY_ORDER, dateOf } from './schedule.js?v=20261111234538';
-import { esc } from './util.js?v=20261111234538';
+import { saveLeague } from './store.js?v=20261112194916';
+import { logoFor } from './logos.js?v=20261112194916';
+import { LOGO_ALIASES } from './data.js?v=20261112194916';
+import { ovr, winProbability, matchOdds, isKnockout, QUARTERS, OT, OT_PERIODS } from './sim.js?v=20261112194916';
+import { records, isFinal, winnerOf, resultFor, isTie, sameConf } from './standings.js?v=20261112194916';
+import { latestPoll, pollRankMap } from './polls.js?v=20261112194916';
+import { afterChange, applyResult, clearResult, simResult, deleteGame, weekName, estimateHE } from './league.js?v=20261112194916';
+import { regWeeksOf, shownSeed, regionalSeed, mcwsVenue, gameVenue } from './postseason.js?v=20261112194916';
+import { DAY_ORDER, dateOf } from './schedule.js?v=20261112194916';
+import { esc } from './util.js?v=20261112194916';
 
 // Logo files in this app (img/conf/) carry this release's version, like the
 // scripts do, so a redrawn logo shows right away instead of a cached copy.
@@ -274,18 +274,37 @@ function gameTop(s, g, close = false, short = !close) {
 // poll), and the field with a box score link (or the favorite and a sim
 // button before the game) underneath.
 export function gameCard(g) {
+  // The scoreboard card (the AAU look, Nov. 2026): the conference's color in
+  // a bar across the top and its logo leading the header, then a row per
+  // team (logo, poll rank or seed, name, the score each quarter, the final
+  // score; the loser's row fades), and the field with a box score link (or
+  // the favorite and a sim button before the game) underneath.
   const s = S(), fin = isFinal(g);
   const where = venueText(s, g);
+  const conf = gameConf(s, g);
+  const tag = conf && g.type === 'regular' ? '' : gameTag(g, true);
+  const n = Math.max(QUARTERS, g.homeLine?.length || 0, g.awayLine?.length || 0);
+  const w = fin ? winnerOf(g) : null;
+  const ranks = fin ? cache.ranksAt(g.week) : cache.ranks();
+  const row = (t, line, R) => {
+    const info = teamInfo(t), seed = seedOf(g, t), poll = showsRank(g.type) ? ranks[t] : null;
+    const cls = fin ? (w === t ? 'win' : w ? 'loss' : '') : '';
+    return `<div class="sc-row ${cls}" style="--n:${n}">
+      <a class="sc-logo" href="${t ? teamHref(t) : '#'}" title="${esc(t || '')}">${logoImg(info, 32)}</a>
+      <span class="sc-name">${poll ? `<span class="sc-rk" title="Poll ranking">${poll}</span>` : ''}${seed ? `<span class="sc-seed" title="Seed">${seed}</span>` : ''}<a class="team-link" href="${t ? teamHref(t) : '#'}">${esc(t || 'TBD')}</a>${!fin && t ? `<span class="sc-rec">${recordAt(t, g)}</span>` : ''}</span>
+      ${Array.from({ length: n }, (_, i) => `<span class="sc-q">${fin && line && i < line.length && line[i] !== null ? line[i] : ''}</span>`).join('')}
+      <span class="sc-score">${fin ? `${R}${pkText(g, t)}` : ''}</span></div>`;
+  };
   let right;
-  if (fin) right = '<span class="ga-link">Box score ›</span>';
+  if (fin) right = '<span class="sc-link">Box score</span>';
   else {
     const fav = favorite(s, g);
     right = `${fav ? `<span class="ga-fav" title="Win probability">${fav}</span>` : ''}${s.teams[g.home] && s.teams[g.away] ? `<button class="btn sm" data-simgame="${g.id}" title="Simulate this game and save the result">🎲 Sim</button>` : ''}`;
   }
-  const conf = gameConf(s, g);
-  return `<div class="game ga ${fin ? 'final' : 'upcoming'}${conf ? ' conf-game' : ''}"${conf ? ` style="--cc:${esc(confColor(conf))}"` : ''} data-game="${g.id}" tabindex="0">${gameTop(s, g)}
-    ${teamRow(g, g.away, g.awayR, { record: !fin })}${teamRow(g, g.home, g.homeR, { record: !fin })}
-    <div class="ga-foot"><span class="ga-where">${esc(where)}</span>${right}</div></div>`;
+  return `<div class="game sc ${fin ? 'final' : 'upcoming'}${conf ? ' conf-game' : ''}" style="--cc:${esc(conf ? confColor(conf) : '#0b1f3a')}" data-game="${g.id}" tabindex="0">
+    <div class="sc-top">${conf ? `<a class="sc-conf" href="${confHref(conf)}" title="${esc(conf)}${g.type === 'conf' ? ' Tournament' : ' game'}">${confLogo(conf, 24)}</a>` : ''}<span class="sc-status"><b>${fin ? esc(gameStatus(g)).toUpperCase() : 'UPCOMING'}</b> · ${esc(g.day)}</span>${tag ? `<span class="sc-tag">${tag}</span>` : ''}</div>
+    <div class="sc-body">${row(g.away, g.awayLine, g.awayR)}${row(g.home, g.homeLine, g.homeR)}</div>
+    <div class="sc-foot"><span class="sc-where">${esc(where)}</span>${right}</div></div>`;
 }
 
 // Period headings for a line score: 1st, 2nd, 3rd, then OT (2OT and so on).

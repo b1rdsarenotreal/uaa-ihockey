@@ -1,16 +1,16 @@
 // Shared UI state and pieces used by every page: the league, saving,
 // team labels and logos, game cards, and the game editor.
 
-import { saveLeague } from './store.js?v=20261112225225';
-import { logoFor } from './logos.js?v=20261112225225';
-import { LOGO_ALIASES } from './data.js?v=20261112225225';
-import { ovr, winProbability, matchOdds, isKnockout, QUARTERS, OT, OT_PERIODS } from './sim.js?v=20261112225225';
-import { records, isFinal, winnerOf, resultFor, isTie, sameConf } from './standings.js?v=20261112225225';
-import { latestPoll, pollRankMap } from './polls.js?v=20261112225225';
-import { afterChange, applyResult, clearResult, simResult, deleteGame, weekName, estimateHE } from './league.js?v=20261112225225';
-import { regWeeksOf, shownSeed, regionalSeed, mcwsVenue, gameVenue } from './postseason.js?v=20261112225225';
-import { DAY_ORDER, dateOf } from './schedule.js?v=20261112225225';
-import { esc } from './util.js?v=20261112225225';
+import { saveLeague } from './store.js?v=20261112232254';
+import { logoFor } from './logos.js?v=20261112232254';
+import { LOGO_ALIASES } from './data.js?v=20261112232254';
+import { ovr, winProbability, matchOdds, isKnockout, QUARTERS, OT, OT_PERIODS } from './sim.js?v=20261112232254';
+import { records, isFinal, winnerOf, resultFor, isTie, sameConf } from './standings.js?v=20261112232254';
+import { latestPoll, pollRankMap } from './polls.js?v=20261112232254';
+import { afterChange, applyResult, clearResult, simResult, deleteGame, weekName, estimateHE } from './league.js?v=20261112232254';
+import { regWeeksOf, shownSeed, regionalSeed, mcwsVenue, gameVenue } from './postseason.js?v=20261112232254';
+import { DAY_ORDER, dateOf } from './schedule.js?v=20261112232254';
+import { esc } from './util.js?v=20261112232254';
 
 // Logo files in this app (img/conf/) carry this release's version, like the
 // scripts do, so a redrawn logo shows right away instead of a cached copy.
@@ -641,7 +641,10 @@ function winTint(t) {
   const end = fg === '#ffffff' ? `color-mix(in srgb, ${c} 62%, #000)` : `color-mix(in srgb, ${c} 70%, #fff)`;
   return ` style="--tint:${esc(c)};--tint-end:${end};--tint-fg:${fg}"`;
 }
-export function compactCard(g, seedFn = () => null) {
+// `top` puts that team on the top row: brackets list the teams in bracket
+// order (the slot each came from), not away over home (the owner's rule,
+// Nov. 2026). Schedules and box scores keep away over home.
+export function compactCard(g, seedFn = () => null, { top = null } = {}) {
   const s = S();
   const fin = isFinal(g);
   const w = fin ? winnerOf(g) : null;
@@ -659,7 +662,9 @@ export function compactCard(g, seedFn = () => null) {
   const label = g.label ? g.label.split(' · ').slice(-1)[0] : '';
   return `<div class="bgame" data-game="${g.id}" tabindex="0" title="Click for the box score">
     <div class="bg-row bg-head"><span class="bg-label">${esc(label)}</span><span class="bg-status">${status}</span></div>
-    ${row(g.away, g.awayR, g.awayH, g.awayE)}${row(g.home, g.homeR, g.homeH, g.homeE)}</div>`;
+    ${top === g.home
+      ? row(g.home, g.homeR, g.homeH, g.homeE) + row(g.away, g.awayR, g.awayH, g.awayE)
+      : row(g.away, g.awayR, g.awayH, g.awayE) + row(g.home, g.homeR, g.homeH, g.homeE)}</div>`;
 }
 export function placeholderCard(label, teams, seedFn = () => null, { faded = false, note = '', ranks = true } = {}) {
   const row = t => {

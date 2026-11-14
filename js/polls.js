@@ -16,8 +16,8 @@
 // settings, so they carry into later seasons), remove added voters, and
 // edit any published poll.
 
-import { rng, normal, hashStr, clamp } from './util.js?v=20261113200436';
-import { records, rpi, rating, indexName, usesNpi, isFinal, winnerOf, isTie } from './standings.js?v=20261113200436';
+import { rng, normal, hashStr, clamp } from './util.js?v=20261113221327';
+import { records, rpi, rating, indexName, usesNpi, isFinal, winnerOf, isTie } from './standings.js?v=20261113221327';
 
 export const DEFAULT_POLL_SIZE = 15;
 export const POLL_SIZES = [10, 15, 20, 25];
@@ -170,7 +170,7 @@ export function powerRatings(season, filter = null) {
 // Résumé: every win counts, more against a strong opponent; every loss costs,
 // less against a strong opponent, but losses weigh as much as wins. Covers
 // the whole season to date.
-const INERTIA = 0.2;
+const INERTIA = 0.3;
 const quality = r => Math.max(0, Math.min(2.5, (r / SCALE + 1.5) / 2.5));
 export function resumeScores(season, power, filter = null) {
   const out = Object.fromEntries(Object.keys(season.teams).map(t => [t, 0]));
@@ -281,7 +281,7 @@ export function generatePoll(season, week, { final = false, postBonus = null } =
     zDelta = zmap(Object.fromEntries(teams.map(t => [t, inp.res[t] - before[t]])));
   }
   // Head to head: a ranked team that won this week's meeting (more wins than
-  // losses against that team) with a ranked team at most H2H_GAP spots above
+  // losses against that team) with a ranked team at most H2H_GAP (5) spots above
   // it goes above that team on every ballot.
   const h2h = headToHead(season, week, prevRank, final);
   const weekW = {}, weekL = {};
@@ -303,10 +303,12 @@ export function generatePoll(season, week, { final = false, postBonus = null } =
       const resume = played ? (1 - rpiMix) * zQ[t] + rpiMix * zR[t] : 0;
       let sc = sw * zP[t] + (1 - sw) * resume;
       sc += v.sos * zS[t] * Math.min(1, played / 20);
-      // Voters remember last week's poll a little (loyal ones more).
+      // Voters remember last week's poll (loyal ones more).
       if (prevRank[t]) sc += INERTIA * v.loyalty * (prevSize + 1 - prevRank[t]) / prevSize;
       sc += v.recency * zWeek[t];
-      if (zDelta) sc += (WEEK_WEIGHT + v.recency) * zDelta[t];
+      // The week's résumé change, capped so one big week can't throw a team
+      // across the poll (Nov. 2026: the owner found the moves too big).
+      if (zDelta) sc += WEEK_WEIGHT * clamp(zDelta[t], -1.5, 1.5);
       sc -= v.losses * badLosses[t];
       if (vconf && season.teams[t].conference === vconf) sc += v.regionBoost;
       sc += postBonus?.[t] || 0;
@@ -342,7 +344,7 @@ export function generatePoll(season, week, { final = false, postBonus = null } =
   };
 }
 
-const WEEK_WEIGHT = 0.15, H2H_GAP = 6;
+const WEEK_WEIGHT = 0.07, H2H_GAP = 5;
 function headToHead(season, week, prevRank, final) {
   if (final || week <= 0) return [];
   const pair = {};

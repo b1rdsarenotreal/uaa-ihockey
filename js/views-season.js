@@ -1,14 +1,14 @@
 // Season pages: home, schedule, standings, rankings and postseason.
 
-import { ctx, S, app, modal, $, $$, esc, toast, changed, persist, cache, team, teamOptions, teamNames, confLogo, confHref, confColor, confInfo, gameCard, compactCard, placeholderCard, bindGameCards, openGame, resultText, periodNote, DAY_NAMES, readableOn, teamInfo, logoImg, teamHref, seasonLabel } from './ui.js?v=20261113221327';
-import { isFinal, winnerOf, resultFor, records, rpi, rating, indexName, usesNpi, NPI_DIALS, confStandings, conferences, regSeasonChamp, regSeasonChamps, TIEBREAKERS, quadrants, quadCuts, isIndependent, INDEPENDENT } from './standings.js?v=20261113221327';
-import { latestPoll, generatePoll, pollRankMap, pollSizeOf, VOTER_PANEL, voterStyle, votersOf, addRandomVoter, removeVoter } from './polls.js?v=20261113221327';
-import { ovr } from './sim.js?v=20261113221327';
-import { simGames, addGame, weekName } from './league.js?v=20261113221327';
-import { confClashes, CONF_FORMATS, confFormatName, confKind , regionalFirstRound } from './postseason.js?v=20261113221327';
-import { COMMITTEE_TIERS, gameVenue, COMMITTEE_SHORT, committeeSheet, compareTeams, mcwsVenue, postWeeks, regWeeksOf, ncaaConfig, hasSupers, noRegionals, fieldSize, wsTeams, formatSummary, shownSeed, postseasonBonus, defaultConfTourneySize, confTourneySeeds, reseedConfTourney, proposeField, lockField, pods, nodeTeams, nodeNeeded, runnerUp, committeeOrder, autoBids, refLabel, setConfFormat, ensureLayout, confHost, setConfHost, mcwsHistory, selectionBoard, setAtLarge, confirmField, unconfirmField, bracketology, BRACKETOLOGY_FROM_WEEK } from './postseason.js?v=20261113221327';
-import { fmtPct, hashStr } from './util.js?v=20261113221327';
-import { DAY_ORDER, CONF_WEEKENDS, applyConfWeekend } from './schedule.js?v=20261113221327';
+import { ctx, S, app, modal, $, $$, esc, toast, changed, persist, cache, team, teamOptions, teamNames, confLogo, confHref, confColor, confInfo, gameCard, compactCard, placeholderCard, bindGameCards, openGame, resultText, periodNote, DAY_NAMES, readableOn, teamInfo, logoImg, teamHref, seasonLabel } from './ui.js?v=20261113225431';
+import { isFinal, winnerOf, resultFor, records, rpi, rating, indexName, usesNpi, NPI_DIALS, confStandings, conferences, regSeasonChamp, regSeasonChamps, TIEBREAKERS, quadrants, quadCuts, isIndependent, INDEPENDENT } from './standings.js?v=20261113225431';
+import { latestPoll, generatePoll, pollRankMap, pollSizeOf, VOTER_PANEL, voterStyle, votersOf, addRandomVoter, removeVoter } from './polls.js?v=20261113225431';
+import { ovr } from './sim.js?v=20261113225431';
+import { simGames, addGame, weekName } from './league.js?v=20261113225431';
+import { confClashes, CONF_FORMATS, confFormatName, confKind , regionalFirstRound } from './postseason.js?v=20261113225431';
+import { COMMITTEE_TIERS, gameVenue, COMMITTEE_SHORT, committeeSheet, compareTeams, mcwsVenue, postWeeks, regWeeksOf, ncaaConfig, hasSupers, noRegionals, fieldSize, wsTeams, formatSummary, shownSeed, postseasonBonus, defaultConfTourneySize, confTourneySeeds, reseedConfTourney, proposeField, lockField, pods, nodeTeams, nodeNeeded, runnerUp, committeeOrder, autoBids, refLabel, setConfFormat, ensureLayout, confHost, setConfHost, mcwsHistory, selectionBoard, setAtLarge, confirmField, unconfirmField, bracketology, BRACKETOLOGY_FROM_WEEK } from './postseason.js?v=20261113225431';
+import { fmtPct, hashStr } from './util.js?v=20261113225431';
+import { DAY_ORDER, CONF_WEEKENDS, applyConfWeekend } from './schedule.js?v=20261113225431';
 
 // " at Lynah Rink, Ithaca, N.Y." for a host school with a home rink.
 const atField = (s, school) => { const t = s.teams[school]; const f = [t?.stadium, t?.city].filter(Boolean).join(', '); return f ? ` at ${esc(f)}` : ''; };
@@ -1073,11 +1073,13 @@ function regionalPreview(s, field, podList, r) {
 // look, Nov. 2026): regions in the corners, the right-hand ones drawn right to
 // left, and the finals in a navy panel in the middle. Regions whose winners
 // meet in a semifinal share a side (region i meets region n-1-i).
-function renderBoard(root) {
+function renderBoard(root, extra = 0) {
   const s = S(), p = s.post || {}, regs = p.regionals || [], n = regs.length;
   const name = esc(s.settings.mcwsName), v = mcwsVenue(s);
   const order = n === 4 ? [[regs[0], regs[3]], [regs[1], regs[2]]] : [regs.slice(0, Math.ceil(n / 2)), regs.slice(Math.ceil(n / 2))];
-  const size = { cw: 204, colw: 220, h: 90, slot: 98 };
+  // `extra` widens the boxes and the space between rounds so the board fills
+  // the page's width (fitBoard).
+  const size = { cw: 204 + extra, colw: 220 + extra, h: 90, slot: 98 };
   const region = (ev, mirror) => {
     const seed = t => { const i = ev.seeds.indexOf(t); return i >= 0 ? i + 1 : null; };
     const top = ev.top || ev.host, c = teamInfo(top)?.color || '#0b1f3a';
@@ -1096,11 +1098,11 @@ function renderBoard(root) {
     ${finals}
     <div class="bb-side">${order[1].map(ev => region(ev, true)).join('')}</div></div></div>
     <p class="small muted">Seeds inside a region are regional seeds; the ${name} shows national seeds. Click a game for its box score.</p>`;
-  fitBoard(root);
+  fitBoard(root, extra);
 }
 // Size the board to the window (see below). It refits when the window
 // changes size.
-function fitBoard(root) {
+function fitBoard(root, extra = 0) {
   const bb = $('.bb', root), box = $('.bb-scroll', root);
   if (!bb || !box) return;
   bb.style.zoom = 1;
@@ -1109,10 +1111,17 @@ function fitBoard(root) {
   // like 12 teams doesn't blow up.
   const byW = (box.clientWidth - 2) / bb.scrollWidth, byH = (window.innerHeight - 260) / bb.scrollHeight;
   const z = byW < 1 ? Math.max(0.6, byW) : Math.max(1, Math.min(1.15, byW, byH));
+  // Height holds the zoom back but there's width to spare: stretch the
+  // regions sideways (wider boxes, longer lines between rounds) to fill it.
+  if (!extra && byW > z) {
+    const reg = $('.bb-region', root), cols = reg ? Math.max(1, Math.round((reg.scrollWidth - 204) / 220) + 1) : 0;
+    const d = cols ? Math.min(140, Math.floor(((box.clientWidth - 2) / z - bb.scrollWidth) / (2 * cols))) : 0;
+    if (d >= 8) return renderBoard(root, d);
+  }
   bb.style.zoom = z.toFixed(3);
 }
 let boardResize = null;
-window.addEventListener('resize', () => { clearTimeout(boardResize); boardResize = setTimeout(() => { const r = document.querySelector('.bb')?.closest('#ps'); if (r) fitBoard(r); }, 120); });
+window.addEventListener('resize', () => { clearTimeout(boardResize); boardResize = setTimeout(() => { const r = document.querySelector('.bb')?.closest('#ps'); if (r) { renderBoard(r); bindGameCards(r); } }, 120); });
 
 function renderRegionals(root) {
   const s = S(), p = s.post || {};

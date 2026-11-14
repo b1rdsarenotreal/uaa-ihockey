@@ -1207,3 +1207,8 @@ button.bx-sg:hover { border-color: var(--muted); }
 .ts2-wl { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 6px; font: 700 12px var(--body); color: #fff; }
 .ts2-wl.w { background: #1f6f43; } .ts2-wl.l { background: #b4343a; } .ts2-wl.t { background: #b9c3d3; color: #0b1f3a; }
 @media (max-width: 720px) { .team-hero2, .team-tabs { margin-left: -12px; margin-right: -12px; } .th-top { padding: 20px 14px; } .th-strip { margin: 0 14px; } .th-name { font-size: 36px; } .th-logo { width: 84px; height: 84px; } .th-logo > * { zoom: .68; } }
+
+/* Team schedule: the team's own rank that week, left of vs / at (as the
+   older schedule had it); an empty slot when unranked keeps vs lined up. */
+.ts2-mine { flex: none; width: 30px; text-align: right; font: 700 13px/1 var(--mono); color: var(--muted); }
+.ts2-vs { flex: none; width: 18px; }

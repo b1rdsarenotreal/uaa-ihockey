@@ -4,7 +4,9 @@ A college ice hockey dynasty set in 2030, women's and men's as two separate
 dynasties behind a switch in the top bar: women's has the owner's 13 AAU
 programs in his conferences (Ivy 6, Big Ten 4, Metro 3), men's the 17 in two
 men's hockey conferences made for this dynasty (West and East; the owner
-asked for "everyone once and your conference twice"). It started as a copy of
+asked for "everyone once and your conference twice"). The Western Hockey
+Conference's logo is drawn by `tools/conf_logos.py` (`img/conf/whc.svg`:
+a puck badge with crossed sticks, WHC in Saira Stencil One). It started as a copy of
 AAU Lacrosse (from AAU Basketball, AAU Field Hockey, AAU Soccer, AAU
 Volleyball and the owner's MCS Dynasty), with AAU Soccer's tie displays.
 

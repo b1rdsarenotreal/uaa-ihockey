@@ -226,4 +226,45 @@ svg('ivy.svg', 'Ivy League', f"""
 <path fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" d="M60 66 V75"/>
 {text('IVY', 60, 99, 25, '#FFFFFF', 1.5)}""")
 
+# Western Hockey Conference: a navy puck-style badge with a gold ring,
+# crossed gold sticks over a puck, a white star and WHC in Saira Stencil One
+# (the owner's pick, B4, Nov. 2026; SIL Open Font License, tools/fonts/).
+STENCIL = TTFont(os.path.join(os.path.dirname(__file__), 'fonts', 'SairaStencilOne-Regular.woff'))
+WNAVY, WGOLD, WICE = '#14365D', '#C8A951', '#DCE7F2'
+
+
+def stencil(s, cx, cy, width):
+    """Outlined Saira Stencil One text, `width` units wide, centered on (cx, cy)."""
+    gs, cmap = STENCIL.getGlyphSet(), STENCIL.getBestCmap()
+    names = [cmap[ord(c)] for c in s]
+    k = width / sum(gs[n].width for n in names)
+    bp = BoundsPen(gs)
+    for n in names: gs[n].draw(bp)
+    base = cy + bp.bounds[3] * k / 2
+    x, parts = cx - width / 2, []
+    for n in names:
+        pen = SVGPathPen(gs)
+        gs[n].draw(TransformPen(pen, (k, 0, 0, -k, x, base)))
+        parts.append(pen.getCommands())
+        x += gs[n].width * k
+    return ' '.join(parts)
+
+
+def hockey_stick(flip):
+    sx = -1 if flip else 1
+    return (f'<g transform="translate(60 0) scale({sx} 1) translate(-60 0)">'
+            f'<path d="M37 26 L40 23 L80 66 L77 69 Z" fill="{WGOLD}"/>'
+            f'<path d="M77 69 L80 66 L86 72 Q88 75 86 76 L76 76 Q73 76 74 73 Z" fill="{WGOLD}"/></g>')
+
+
+wstar = ' '.join(f'{60 + r * math.sin(math.pi * i / 5):.1f},{27 - r * math.cos(math.pi * i / 5):.1f}' for i, r in zip(range(10), [8.5, 3.6] * 5))
+svg('whc.svg', 'Western Hockey Conference', f"""
+<circle cx="60" cy="60" r="56" fill="{WNAVY}"/>
+<circle cx="60" cy="60" r="50" fill="none" stroke="{WGOLD}" stroke-width="2"/>
+{hockey_stick(False)}{hockey_stick(True)}
+<ellipse cx="60" cy="73" rx="9" ry="3.6" fill="#FFFFFF"/><rect x="51" y="69.5" width="18" height="3.5" fill="#FFFFFF"/><ellipse cx="60" cy="69.5" rx="9" ry="3.6" fill="{WICE}"/>
+<polygon points="{wstar}" fill="#FFFFFF"/>
+<path fill="#FFFFFF" d="{stencil('WHC', 60, 93, 54)}"/>
+<circle cx="60" cy="60" r="56" fill="none" stroke="#FFFFFF" stroke-width="2.5"/>""")
+
 print('wrote', sorted(os.listdir(OUT)))

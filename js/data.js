@@ -32,7 +32,7 @@
 // couldn't be confirmed, starts open. Rinks are each school's home rink
 // (several men's teams play in a bigger arena).
 
-import { DEFAULT_LOGOS } from './logo-import.js?v=20261113225431';
+import { DEFAULT_LOGOS } from './logo-import.js?v=20261115124409';
 
 export const START_YEAR = 2030;
 
@@ -52,7 +52,7 @@ export const CONFERENCES = {
   'Big Ten': { abbr: 'B1G', color: '#0088CE', altColor: '#0B2A4A', logo: L('bigten') },
   'Ivy League': { abbr: 'IVY', color: '#026937', altColor: '#C9B37E', logo: L('ivy') },
   'Metro Conference': { abbr: 'METRO', color: '#E03A3E', altColor: '#23262D', logo: L('metro') },
-  'Western Hockey Conference': { abbr: 'WHC', color: '#14365D', altColor: '#C8A951' },
+  'Western Hockey Conference': { abbr: 'WHC', color: '#14365D', altColor: '#C8A951', logo: L('whc') },
   'Eastern Hockey Conference': { abbr: 'EHC', color: '#6B1E2E', altColor: '#B9C3CC' },
 };
 

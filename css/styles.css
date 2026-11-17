@@ -1212,3 +1212,17 @@ button.bx-sg:hover { border-color: var(--muted); }
    older schedule had it); an empty slot when unranked keeps vs lined up. */
 .ts2-mine { flex: none; width: 30px; text-align: right; font: 700 13px/1 var(--mono); color: var(--muted); }
 .ts2-vs { flex: none; width: 18px; }
+
+/* ---------- Realignment from AAU Dynasty (Offseason page) ---------- */
+.realign-card { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; border-left: 5px solid var(--optic); }
+.realign-card .rl-mark { height: 26px; }
+.realign-card .rl-text { display: flex; flex-direction: column; gap: 2px; }
+.realign-card .spacer { flex: 1; }
+.rl-body { max-height: calc(100vh - 200px); overflow-y: auto; }
+.rl-h { margin: 14px 0 6px; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; }
+.rl-row { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; margin-bottom: 4px; cursor: pointer; flex-wrap: wrap; }
+.rl-row b { margin-right: auto; }
+.rl-row:has(input:not(:checked)) { opacity: .5; }
+.rl-conf { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; }
+.rl-move { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.rl-confs { display: flex; gap: 12px; flex-wrap: wrap; }

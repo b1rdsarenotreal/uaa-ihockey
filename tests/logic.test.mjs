@@ -243,6 +243,7 @@ check('a saved league loads again', () => {
   assert.equal(copy.sport, 'hockey');
 });
 
+
 console.log(`${n} checks ok in ${Date.now() - t0} ms`);
 
 // ---- NPI ----
@@ -286,4 +287,31 @@ console.log(`${n} checks ok in ${Date.now() - t0} ms`);
     assert.deepEqual(s.post.regionals.map(ev => ev.seeds), fixed, 'the announced regionals match the preview');
   }
   console.log('conference matchups ok');
+}
+
+// A realignment from AAU Dynasty's Realignment page: moves, a school that
+// plays this sport joining, a new conference with its logo; applied once.
+{
+  const store = {};
+  globalThis.localStorage = { getItem: k => store[k] ?? null, setItem: (k, v) => (store[k] = String(v)), removeItem: k => delete store[k] };
+  const R = await import('../js/realign.js');
+  const { AAU_SCHOOLS: SCH, AAU_PROGRAMS: PROG } = await import('../js/aau-schools.js');
+  const LG = await import('../js/league.js');
+  const assert2 = (await import('node:assert/strict')).default;
+  const d = LG.newLeague({ side: 'women' });
+  d.draft = { year: d.currentYear + 1, teams: structuredClone(d.seasons[d.currentYear].teams), removed: {}, moves: [] };
+  const T = d.draft.teams, names = Object.keys(T);
+  const mover = names[0], joiner = Object.keys(PROG['women'] || {}).find(x => !T[x] && SCH[x]);
+  const schools = Object.fromEntries(names.map(n => [n, T[n].conference]));
+  schools[mover] = 'Greater South Conference';
+  if (joiner) schools[joiner] = 'Greater South Conference';
+  store['aau-realignment'] = JSON.stringify({ id: 't1', saved: new Date().toISOString(), schools, conferences: { 'Greater South Conference': { abbr: 'GSC', color: '#14284B', logo: 'img/conf/gsc.svg' } }, joins: joiner ? [joiner] : [], left: [], info: {} });
+  const r = R.realignmentFor(d);
+  assert2.equal(r.moves.length, 1); assert2.deepEqual(r.newConfs, ['Greater South Conference']);
+  R.applyRealignment(d, r, new Set([mover, ...(joiner ? [joiner] : [])]));
+  assert2.equal(T[mover].conference, 'Greater South Conference');
+  assert2.equal(d.conferences['Greater South Conference'].logo, 'img/conf/gsc.svg');
+  if (joiner) assert2.equal(T[joiner].conference, 'Greater South Conference');
+  assert2.equal(R.realignmentFor(d), null, 'applied once');
+  console.log('realignment ok' + (joiner ? ` (${joiner} joins)` : ''));
 }

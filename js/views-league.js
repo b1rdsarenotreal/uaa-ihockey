@@ -1,20 +1,21 @@
 // League pages: teams, team profiles, conferences, history, settings.
 
-import { readAauLogos, applyAauLogos, DEFAULT_LOGOS } from './logo-import.js?v=20261116233234';
-import { AAU_SCHOOLS, AAU_CONFERENCES, AAU_PROGRAMS } from './aau-schools.js?v=20261116233234';
-import { ctx, S, app, modal, $, $$, esc, toast, changed, persist, flushSave, cache, team, teamInfo, logoImg, teamOptions, teamHref, confLogo, confHref, confInfo, confColor, imageFileToDataUrl, readableOn, openGame, resultText, periodNote, gameDateOf, seasonLabel, seasonSpan } from './ui.js?v=20261116233234';
-import { isFinal, winnerOf, resultFor, records, rpi, rating, indexName, usesNpi, confStandings, regSeasonChamp, regSeasonChamps, isIndependent } from './standings.js?v=20261116233234';
-import { ovr } from './sim.js?v=20261116233234';
-import { latestPoll, pollRankMap, pollSizeOf, POLL_SIZES, DEFAULT_POLL_SIZE } from './polls.js?v=20261116233234';
-import { addTeam, removeTeam, renameTeam, addConference, renameConference, deleteConference, rebuildSchedule, startNextSeason, weekName, newLeague, beginOffseason, draftRemoveTeam, draftRestoreTeam, draftWarnings, coachName, coachSchool, hireCoach, newCoach, availableCoaches, backfillHitsErrors, placeRemaining, clearPoints, pointsLeft, migrateLeague, applyAlignment, canApplyAlignment, syncCoachBonus, devTotal, coachResumes, coachPrestige, prestigeLabel, coachBonus, programPrestiges, programLabel, fitLabel } from './league.js?v=20261116233234';
-import { hotSeat, HEAT } from './hotseat.js?v=20261116233234';
-import { setRating } from './ratings.js?v=20261116233234';
-import { confFormatName, aqConferences, aqMinOf, postseasonFinish, postseasonDetail, postseasonRecord, wsTeams, postWeeks, regWeeksOf, ncaaConfig, ncaaProblems, fieldSize, hasSupers, formatSummary, proposeField, DEFAULT_NCAA, mcwsVenue, allEvents, gameVenue } from './postseason.js?v=20261116233234';
-import { DEFAULT_TOURNEY_WEEKS, DEFAULT_REG_WEEKS, DEFAULT_CONF_MATCHES, DEFAULT_MAX_MATCHES, confTarget } from './schedule.js?v=20261116233234';
-import { exportLeague, clearLeague } from './store.js?v=20261116233234';
-import { conferencesFor, sideOf } from './data.js?v=20261116233234';
-import { clamp, fmtPct } from './util.js?v=20261116233234';
-import { recordBook, teamPollHistory, headToHead } from './records.js?v=20261116233234';
+import { readAauLogos, applyAauLogos, DEFAULT_LOGOS } from './logo-import.js?v=20261117005235';
+import { AAU_SCHOOLS, AAU_CONFERENCES, AAU_PROGRAMS } from './aau-schools.js?v=20261117005235';
+import { realignmentFor, applyRealignment, skipRealignment, JOIN_RATING } from './realign.js?v=20261117005235';
+import { ctx, S, app, modal, $, $$, esc, toast, changed, persist, flushSave, cache, team, teamInfo, logoImg, teamOptions, teamHref, confLogo, confHref, confInfo, confColor, imageFileToDataUrl, readableOn, openGame, resultText, periodNote, gameDateOf, seasonLabel, seasonSpan } from './ui.js?v=20261117005235';
+import { isFinal, winnerOf, resultFor, records, rpi, rating, indexName, usesNpi, confStandings, regSeasonChamp, regSeasonChamps, isIndependent } from './standings.js?v=20261117005235';
+import { ovr } from './sim.js?v=20261117005235';
+import { latestPoll, pollRankMap, pollSizeOf, POLL_SIZES, DEFAULT_POLL_SIZE } from './polls.js?v=20261117005235';
+import { addTeam, removeTeam, renameTeam, addConference, renameConference, deleteConference, rebuildSchedule, startNextSeason, weekName, newLeague, beginOffseason, draftRemoveTeam, draftRestoreTeam, draftWarnings, coachName, coachSchool, hireCoach, newCoach, availableCoaches, backfillHitsErrors, placeRemaining, clearPoints, pointsLeft, migrateLeague, applyAlignment, canApplyAlignment, syncCoachBonus, devTotal, coachResumes, coachPrestige, prestigeLabel, coachBonus, programPrestiges, programLabel, fitLabel } from './league.js?v=20261117005235';
+import { hotSeat, HEAT } from './hotseat.js?v=20261117005235';
+import { setRating } from './ratings.js?v=20261117005235';
+import { confFormatName, aqConferences, aqMinOf, postseasonFinish, postseasonDetail, postseasonRecord, wsTeams, postWeeks, regWeeksOf, ncaaConfig, ncaaProblems, fieldSize, hasSupers, formatSummary, proposeField, DEFAULT_NCAA, mcwsVenue, allEvents, gameVenue } from './postseason.js?v=20261117005235';
+import { DEFAULT_TOURNEY_WEEKS, DEFAULT_REG_WEEKS, DEFAULT_CONF_MATCHES, DEFAULT_MAX_MATCHES, confTarget } from './schedule.js?v=20261117005235';
+import { exportLeague, clearLeague } from './store.js?v=20261117005235';
+import { conferencesFor, sideOf } from './data.js?v=20261117005235';
+import { clamp, fmtPct } from './util.js?v=20261117005235';
+import { recordBook, teamPollHistory, headToHead } from './records.js?v=20261117005235';
 
 const ui = { confFilter: '', ncaaDraft: null, teamSort: { k: 'ovr', dir: -1 }, coachSort: { k: 'now', dir: -1 }, teamTab: 'season', h2hSort: { k: 'g', dir: -1 }, h2hFilter: 'all', memberSort: { k: 'titles', dir: -1 } };
 
@@ -231,6 +232,50 @@ function hotSeatFor(L) {
 }
 const ordinalWord = n => ['First', 'Second', 'Third', 'Fourth', 'Fifth', 'Sixth', 'Seventh', 'Eighth', 'Ninth', 'Tenth'][n - 1] || `${n}th`;
 
+// A realignment saved on the AAU Dynasty's Realignment page: a card on the
+// Offseason page, and a review where the commissioner picks what to apply.
+function realignBanner() {
+  const r = realignmentFor(ctx.league);
+  if (!r) return '';
+  const when = new Date(r.plan.saved).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  const bits = [r.joins.length && `${r.joins.length} joining`, r.moves.length && `${r.moves.length} changing conferences`, r.leaves.length && `${r.leaves.length} leaving`, r.newConfs.length && `${r.newConfs.length} new conference${r.newConfs.length === 1 ? '' : 's'}`].filter(Boolean);
+  return `<div class="card realign-card" style="margin-top:14px"><img src="img/aau-block.svg" alt="" class="rl-mark"><div class="rl-text"><b>Realignment from AAU Dynasty</b><span class="muted small">Saved ${esc(when)} · ${r.empty ? `nothing changes in this sport${r.notHere.length ? ` (${r.notHere.length} new school${r.notHere.length === 1 ? ' doesn\'t' : 's don\'t'} play it)` : ''}` : esc(bits.join(' · '))}</span></div>
+    <span class="spacer"></span>${r.empty ? '<button class="btn" id="rl-skip">Dismiss</button>' : '<button class="btn ghost" id="rl-skip">Skip for this sport</button><button class="btn primary" id="rl-review">Review and apply</button>'}</div>`;
+}
+function bindRealign() {
+  const r = realignmentFor(ctx.league);
+  if (!r) return;
+  const skip = $('#rl-skip'), review = $('#rl-review');
+  if (skip) skip.onclick = () => { if (!r.empty && !confirm('Skip this realignment in this sport? Nothing changes here; the other sports still get it.')) return; skipRealignment(ctx.league, r); changed({ progress: false }); };
+  if (review) review.onclick = () => realignModal(r);
+}
+function realignModal(r) {
+  const L = ctx.league, conf = c => L.conferences[c] && !L.conferences[c].retired ? L.conferences[c] : { ...(AAU_CONFERENCES[c] || {}), ...(r.plan.conferences?.[c] || {}) };
+  const cl = c => { const x = conf(c), here = L.conferences[c] && !L.conferences[c].retired; return `<span class="rl-conf">${here || !x.logo ? confLogo(c, 18) : `<span class="conf-logo" style="width:18px;height:18px"><img src="${esc(x.logo)}" alt="" onerror="this.parentNode.classList.add('broken')"><span class="conf-badge" style="width:18px;height:18px;font-size:8px;background:${esc(x.color || '#555')}">${esc(x.abbr || '')}</span></span>`}<span>${esc(c)}</span></span>`; };
+  const look = s => { const x = AAU_SCHOOLS[s] || r.plan.info?.[s] || {}; return { school: s, abbr: x.abbr, color: x.color || '#666', altColor: x.altColor || '#fff', logoOverride: r.plan.info?.[s]?.logo || null }; };
+  const box = (s, inner) => `<label class="rl-row"><input type="checkbox" data-rl="${esc(s)}" checked>${logoImg(L.draft.teams[s] || look(s), 22)}<b>${esc(s)}</b>${inner}</label>`;
+  const group = (title, list, f, note = '') => list.length ? `<h3 class="rl-h">${title} <span class="muted">${list.length}</span></h3>${note ? `<p class="small muted" style="margin:0 0 6px">${note}</p>` : ''}${list.map(f).join('')}` : '';
+  modal.innerHTML = `<div class="modal-head"><h2>Realignment for ${seasonLabel(L.draft.year)}</h2><button class="btn ghost" data-x>✕</button></div>
+    <div class="modal-body rl-body">
+      <p class="small muted" style="margin-top:0">From the Realignment page in AAU Dynasty. Untick anything you don't want in this sport.</p>
+      ${r.newConfs.length ? `<h3 class="rl-h">New conferences</h3><div class="rl-confs">${r.newConfs.map(cl).join('')}</div>` : ''}
+      ${group('Joining', r.joins, j => box(j.school, `<span class="muted small">${j.stadium ? esc(j.stadium) + ' · ' : ''}</span>${cl(j.to)}`), `New teams start at ${JOIN_RATING} in each rating${r.joins.some(j => !j.coach) ? ', with the head coach job open' : ''}; change them on this page.`)}
+      ${group('Changing conferences', r.moves, m => box(m.school, `<span class="rl-move">${cl(m.from)}<span class="muted">→</span>${cl(m.to)}</span>`))}
+      ${group('Leaving', r.leaves, l => box(l.school, `<span class="muted small">from the ${esc(l.from)}</span>`), 'Their history stays; you can bring them back on this page.')}
+      ${r.notHere.length ? `<p class="small muted">Not in this sport: ${r.notHere.map(esc).join(', ')}.</p>` : ''}
+      <label class="check" style="margin-top:10px"><input type="checkbox" id="rl-retire" checked> Retire conferences left with no teams</label>
+    </div>
+    <div class="modal-foot"><span class="spacer"></span><button class="btn" data-x>Cancel</button><button class="btn primary" id="rl-apply">Apply</button></div>`;
+  $$('[data-x]', modal).forEach(b => (b.onclick = () => modal.close()));
+  modal.onclose = () => ctx.render();
+  $('#rl-apply', modal).onclick = () => {
+    const pick = new Set($$('[data-rl]', modal).filter(x => x.checked).map(x => x.dataset.rl));
+    try { applyRealignment(L, r, pick, { retireEmpty: $('#rl-retire', modal).checked }); } catch (e) { return toast(e.message, true); }
+    modal.close(); changed({ progress: false }); toast(`Realignment applied: ${pick.size} change${pick.size === 1 ? '' : 's'}.`);
+  };
+  modal.showModal();
+}
+
 export function renderOffseason() {
   const L = ctx.league, cur = L.seasons[L.currentYear];
   if (cur.phase !== 'complete') {
@@ -330,6 +375,7 @@ export function renderOffseason() {
     <div class="hint">Set up the ${seasonLabel(d.year)} season. Each team earned <b>rating points</b> from last season (a winning record and a deep postseason run earn more; teams near the top lose some to graduation; plus some luck). The <b>Points</b> column shows what each team has to place: use − and + on OFF, MID and DEF to put them where they make sense (a team with negative points takes them off). <b>Auto</b> places a team's remaining points at random, and <b>Reset</b> undoes its placements. Move teams with the <b>Conference</b> menus, add teams or conferences, and run the coaching carousel. Nothing is scheduled until you start the season.</div>
     ${warnings.length ? `<div class="hint warn" style="margin-top:10px">${warnings.map(esc).join('<br>')}</div>` : ''}
     ${removed.length ? `<div class="card" style="margin-top:14px"><b>Leaving the dynasty:</b> ${removed.map(t => `<span class="chip-static">${esc(t)} <button class="btn sm" data-restore="${esc(t)}">Bring back</button></span>`).join(' ')}</div>` : ''}
+    ${realignBanner()}
     <div style="margin-top:14px">${carousel}</div>
     <div class="row" style="margin:16px 0 0"><h2 style="margin:0">Teams</h2><span class="muted small" id="o-ptsstatus">${ptsStatus(unplaced)}</span><span class="spacer"></span><button class="btn sm" id="o-autoall" ${unplaced ? '' : 'disabled'}>Auto-place all remaining</button><button class="btn sm ghost" id="o-clearall">Reset all</button></div>
     <div class="off-grid" style="margin-top:10px">${confs.filter(c => !isIndependent(c) || teams.some(t => t.conference === c)).map(card).join('')}</div>`;
@@ -385,6 +431,7 @@ export function renderOffseason() {
   $$('[data-addto]').forEach(b => (b.onclick = () => teamForm(T, { conference: b.dataset.addto })));
   $$('[data-delconf]').forEach(b => (b.onclick = () => { try { deleteConference(L, { teams: T }, b.dataset.delconf); changed({ progress: false }); } catch (e) { toast(e.message, true); } }));
   $('#o-team').onclick = () => teamForm(T);
+  bindRealign();
   $('#o-conf').onclick = () => conferenceForm();
   $('#o-start').onclick = () => {
     const extra = unplaced ? ` ${unplaced} team${unplaced === 1 ? ' still has' : 's still have'} rating points not placed. Unplaced points are lost; ratings stay as they are now.` : '';

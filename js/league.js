@@ -1,15 +1,15 @@
 // League (dynasty) lifecycle: creating the league, saving results,
 // simulating, adding teams and conferences, and rolling into new seasons.
 
-import { DEFAULT_LOGOS, AAU_LOGO_SET } from './logo-import.js?v=20261116222145';
-import { START_YEAR, CONFERENCES, CONF_LOGO_LINKS, COACHES, SIDES, sideOf, conferencesFor, seedTeams, makeTeam, fillSite } from './data.js?v=20261116222145';
-import { generateSchedule, blankGame, DAY_ORDER, DEFAULT_REG_WEEKS, DEFAULT_TOURNEY_WEEKS, DEFAULT_CONF_MATCHES, DEFAULT_MAX_MATCHES, TWICE_MAX, PER_WEEK, confWeeksFor, confWeeksMax, confRounds, confSeriesCounts, confTarget } from './schedule.js?v=20261116222145';
-import { simulateGame, estimateHitsErrors } from './sim.js?v=20261116222145';
-import { generatePoll, releaseDuePolls } from './polls.js?v=20261116222145';
-import { replayRatings, ensureBase } from './ratings.js?v=20261116222145';
-import { progress, lockField, postWeeks, allEvents, regWeeksOf, fieldSize, DEFAULT_NCAA, OLD_DEFAULT_NCAA, pickConfHosts, postseasonFinish, fixEarlyWeekDates, citySiteNames, wsTeams } from './postseason.js?v=20261116222145';
-import { isFinal, records, INDEPENDENT } from './standings.js?v=20261116222145';
-import { rng, normal, clamp, hashStr } from './util.js?v=20261116222145';
+import { DEFAULT_LOGOS, AAU_LOGO_SET } from './logo-import.js?v=20261116223240';
+import { START_YEAR, CONFERENCES, CONF_LOGO_LINKS, COACHES, SIDES, sideOf, conferencesFor, seedTeams, makeTeam, fillSite } from './data.js?v=20261116223240';
+import { generateSchedule, blankGame, DAY_ORDER, DEFAULT_REG_WEEKS, DEFAULT_TOURNEY_WEEKS, DEFAULT_CONF_MATCHES, DEFAULT_MAX_MATCHES, TWICE_MAX, PER_WEEK, confWeeksFor, confWeeksMax, confRounds, confSeriesCounts, confTarget } from './schedule.js?v=20261116223240';
+import { simulateGame, estimateHitsErrors } from './sim.js?v=20261116223240';
+import { generatePoll, releaseDuePolls } from './polls.js?v=20261116223240';
+import { replayRatings, ensureBase } from './ratings.js?v=20261116223240';
+import { progress, lockField, postWeeks, allEvents, regWeeksOf, fieldSize, DEFAULT_NCAA, OLD_DEFAULT_NCAA, pickConfHosts, postseasonFinish, fixEarlyWeekDates, citySiteNames, wsTeams } from './postseason.js?v=20261116223240';
+import { isFinal, records, INDEPENDENT } from './standings.js?v=20261116223240';
+import { rng, normal, clamp, hashStr } from './util.js?v=20261116223240';
 
 export const SCHEMA_VERSION = 4;
 
@@ -609,12 +609,14 @@ export function migrateLeague(league) {
     const m = /^img\/conf\/(\w+)\.svg$/.exec(c?.logo || '');
     if (m && CONF_LOGO_LINKS[m[1]]) { c.logo = CONF_LOGO_LINKS[m[1]]; league.migrated = true; }
   }
-  // The owner's new conferences, added by hand, get their drawn logos (his
-  // picks, Nov. 2026); a logo set by hand stays.
-  const drawn = [[/^(greater south( conference)?|gsc)$/i, 'gsc', '#A3262C'], [/^(horizon valley( conference)?|hvc)$/i, 'hvc', '#E5672A']];
+  // The owner's new conferences, added by hand, get their logos (his picks,
+  // Nov. 2026: drawn ones, and the WAC's linked from the web); a logo set by
+  // hand stays.
+  const drawn = [[/^(greater south( conference)?|gsc)$/i, 'img/conf/gsc.svg', '#A3262C'], [/^(horizon valley( conference)?|hvc)$/i, 'img/conf/hvc.svg', '#E5672A'],
+    [/^(western athletic( conference)?|wac)$/i, CONF_LOGO_LINKS.wac, '#B9975B']];
   for (const [name, c] of Object.entries(league.conferences || {})) {
     const hit = c && !c.logo && drawn.find(([re]) => re.test(name.trim()));
-    if (hit) { Object.assign(c, { logo: `img/conf/${hit[1]}.svg`, altColor: c.altColor || hit[2] }); league.migrated = true; }
+    if (hit) { Object.assign(c, { logo: hit[1], altColor: c.altColor || hit[2] }); league.migrated = true; }
   }
   sortConferences(league);
   // Home fields for teams saved before they existed.

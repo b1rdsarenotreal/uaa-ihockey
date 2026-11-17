@@ -88,6 +88,10 @@ unless the owner asks.
   Ohio, Southern Illinois) has its logo ready the same way (`hvc.svg`, the
   owner's pick: slanted HVC in Archivo Expanded Black with white, orange and
   plum outlines, a striped orange sun rising behind).
+- The Western Athletic Conference is coming back (the owner's; Northern
+  Arizona, San Diego State, Nevada, UNLV, Oregon State, BYU, Utah State,
+  Washington State) with the owner's pick for its logo, the 1992–2010 WAC
+  logo linked from the web (`CONF_LOGO_LINKS.wac`), ready the same way.
 
 ## Before every commit
 

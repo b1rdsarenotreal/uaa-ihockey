@@ -1,4 +1,4 @@
-import { CONF_LOGO_LINKS } from './data.js?v=20261116215134';
+import { CONF_LOGO_LINKS } from './data.js?v=20261116222145';
 
 // Every AAU member school, for the "AAU school" pick on the Add team form:
 // abbreviation, mascot, colors, city and the conference it plays in in the
@@ -90,7 +90,7 @@ export const AAU_SCHOOLS = {
   "Yale": { abbr: "YALE", mascot: "Bulldogs", color: '#00356B', altColor: '#FFFFFF', city: "New Haven, Conn.", conference: "Ivy League" },
 };
 
-// The owner's AAU conferences (his eight and the Greater South), for the "AAU conference" pick on the
+// The owner's AAU conferences (his eight, the Greater South and the Horizon Valley), for the "AAU conference" pick on the
 // Add conference form (a conference that doesn't sponsor this sport yet can
 // be added later): abbreviation, colors and logo, as in the AAU Dynasty.
 export const AAU_CONFERENCES = {
@@ -102,6 +102,7 @@ export const AAU_CONFERENCES = {
   'Southwest Conference': { abbr: 'SWC', color: '#719AE8', altColor: '#F28C38', logo: 'img/conf/swc.svg' },
   'UC Athletic Association': { abbr: 'UCAA', color: '#0F6E7A', altColor: '#F2C14E', logo: 'img/conf/ucaa.svg' },
   'Greater South Conference': { abbr: 'GSC', color: '#14284B', altColor: '#A3262C', logo: 'img/conf/gsc.svg' },
+  'Horizon Valley Conference': { abbr: 'HVC', color: '#33265A', altColor: '#E5672A', logo: 'img/conf/hvc.svg' },
   'University Athletic Association': { abbr: 'UAA', color: '#003087', altColor: '#F2B33D', logo: CONF_LOGO_LINKS.uaa },
 };
 

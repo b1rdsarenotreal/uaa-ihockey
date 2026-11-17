@@ -330,3 +330,45 @@ def gsc():
 
 
 gsc()
+
+
+# Horizon Valley Conference (the owner's pick, Nov. 2026): HVC slanted in
+# Archivo Expanded Black (Archivo at width 125, weight 900; SIL Open Font
+# License, tools/fonts/), plum with white, orange and plum outlines, in front
+# of a striped orange sun rising with gold rays.
+ARCHIVO = TTFont(os.path.join(os.path.dirname(__file__), 'fonts', 'ArchivoExpanded-Black.woff'))
+HVC_PLUM, HVC_ORANGE, HVC_GOLD = '#33265A', '#E5672A', '#F2B33D'
+
+
+def hvc():
+    gs, cmap, upm = ARCHIVO.getGlyphSet(), ARCHIVO.getBestCmap(), ARCHIVO['head'].unitsPerEm
+    names = [cmap[ord(ch)] for ch in 'HVC']
+    raw = sum(gs[n].width for n in names) + 0.02 * upm * 2
+    k = 100 / raw
+    bp = BoundsPen(gs)
+    for n in names: gs[n].draw(bp)
+    base = 78 + bp.bounds[3] * k / 2
+    x, parts = 60 - raw * k / 2, []
+    for n in names:
+        pen = SVGPathPen(gs); gs[n].draw(TransformPen(pen, (k, 0, 0, -k, x, base)))
+        parts.append(pen.getCommands()); x += gs[n].width * k + 0.02 * upm * k
+    d = ' '.join(parts)
+    cx, cy, r = 70, 66, 30
+    rays = ''
+    for i in range(11):
+        a, w = math.radians(-80 + 16 * i), math.radians(3.2)
+        p = lambda rr, dd: (cx + rr * math.sin(a + dd), cy - rr * math.cos(a + dd))
+        (x1, y1), (x2, y2), (x3, y3) = p(r + 3, -w * 1.6), p(r * 1.75, 0), p(r + 3, w * 1.6)
+        rays += f'<polygon points="{x1:.1f},{y1:.1f} {x2:.1f},{y2:.1f} {x3:.1f},{y3:.1f}" fill="{HVC_GOLD}"/>'
+    stripes = ''.join(f'<rect x="{cx - r}" y="{cy - r * f:.1f}" width="{2 * r}" height="{r * h:.1f}" fill="#FFFFFF"/>'
+                      for f, h in ((0.36, 0.07), (0.2, 0.1)))
+    sk = math.tan(math.radians(10))
+    layers = ''.join(f'<path d="{d}" fill="{fill}" stroke="{stroke}" stroke-width="{w}"/>' for fill, stroke, w in
+                     (('#FFFFFF', '#FFFFFF', 10.8), (HVC_PLUM, HVC_PLUM, 8.1), (HVC_PLUM, HVC_ORANGE, 5.4), (HVC_PLUM, '#FFFFFF', 2.7)))
+    svg('hvc.svg', 'Horizon Valley Conference', f"""
+<defs><clipPath id="hvcHalf"><rect x="{cx - 2 * r}" y="{cy - 2 * r}" width="{4 * r}" height="{2 * r}"/></clipPath><clipPath id="hvcDisc"><circle cx="{cx}" cy="{cy}" r="{r}"/></clipPath></defs>
+<g clip-path="url(#hvcHalf)">{rays}<circle cx="{cx}" cy="{cy}" r="{r + 3}" fill="{HVC_PLUM}"/><circle cx="{cx}" cy="{cy}" r="{r}" fill="{HVC_ORANGE}"/><g clip-path="url(#hvcDisc)">{stripes}</g></g>
+<g transform="matrix(1 0 {-sk:.4f} 1 {sk * 78:.2f} 0)" stroke-linejoin="round">{layers}<path d="{d}" fill="{HVC_PLUM}"/></g>""")
+
+
+hvc()

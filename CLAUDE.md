@@ -83,6 +83,11 @@ unless the owner asks.
   ready (`gsc.svg`, the owner's pick: slanted GSC, striped S, compass in the
   G; Saira Black): it's in the Add conference pick (`AAU_CONFERENCES`), and
   a Greater South made by hand gets it on load (`migrateLeague`).
+- The Horizon Valley Conference (the owner's, coming in; Loyola Chicago, UIC,
+  IU Indianapolis, UMKC, Missouri S&T, Cincinnati, Dayton, West Virginia,
+  Ohio, Southern Illinois) has its logo ready the same way (`hvc.svg`, the
+  owner's pick: slanted HVC in Archivo Expanded Black with white, orange and
+  plum outlines, a striped orange sun rising behind).
 
 ## Before every commit
 

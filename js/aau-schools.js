@@ -1,4 +1,4 @@
-import { CONF_LOGO_LINKS } from './data.js?v=20261116230308';
+import { CONF_LOGO_LINKS } from './data.js?v=20261116231829';
 
 // Every AAU member school, for the "AAU school" pick on the Add team form:
 // abbreviation, mascot, colors, city and the conference it plays in in the
@@ -6,9 +6,11 @@ import { CONF_LOGO_LINKS } from './data.js?v=20261116230308';
 // Basketball), the 7 that join for 2032-33 (`joins`, the owner's
 // expansion, Nov. 2026) and the owner's next crop (`crop: 3`, Nov. 2026:
 // Arkansas, Baylor, Houston, SMU, Texas Tech and UT Dallas listed in the
-// Southwest Conference, Saint Louis and Memphis in the Greater South; head
-// coaches and home venues are added by hand). Schools that leave the AAU (McGill and Toronto
-// after 2031-32) stay listed so they can be added back. The home venue and
+// Southwest Conference, Saint Louis and Memphis in the Greater South, and
+// the WAC's eight: Northern Arizona, San Diego State, Nevada, UNLV, Oregon
+// State, BYU, Utah State, Washington State; head coaches and home venues
+// are added by hand). Schools that leave the AAU (McGill and Toronto after
+// 2031-32) stay listed so they can be added back. The home venue and
 // ratings are the sport's own, so they're not here.
 export const AAU_SCHOOLS = {
   "Arizona": { abbr: "ARIZ", mascot: "Wildcats", color: '#0C234B', altColor: '#AB0520', city: "Tucson, Ariz.", conference: "Pacific-10 Conference" },
@@ -19,6 +21,7 @@ export const AAU_SCHOOLS = {
   "Brandeis": { abbr: "BRAN", mascot: "Judges", color: '#003478', altColor: '#FFFFFF', city: "Waltham, Mass.", conference: "University Athletic Association" },
   "Brown": { abbr: "BRWN", mascot: "Bears", color: '#4E3629', altColor: '#C00404', city: "Providence, R.I.", conference: "Ivy League" },
   "Buffalo": { abbr: "BUFF", mascot: "Bulls", color: '#005BBB', altColor: '#FFFFFF', city: "Amherst, N.Y.", conference: "Metro Conference" },
+  "BYU": { abbr: "BYU", mascot: "Cougars", color: '#002E5D', altColor: '#FFFFFF', city: "Provo, Utah", conference: "Western Athletic Conference", crop: 3 },
   "California": { abbr: "CAL", mascot: "Golden Bears", color: '#003262', altColor: '#FDB515', city: "Berkeley, Calif.", conference: "Pacific-10 Conference" },
   "Caltech": { abbr: "CIT", mascot: "Beavers", color: '#FF6C0C', altColor: '#333333', city: "Pasadena, Calif.", conference: "UC Athletic Association" },
   "Carnegie Mellon": { abbr: "CMU", mascot: "Tartans", color: '#C41230', altColor: '#6D6E71', city: "Pittsburgh, Pa.", conference: "University Athletic Association" },
@@ -54,12 +57,15 @@ export const AAU_SCHOOLS = {
   "Missouri": { abbr: "MIZ", mascot: "Tigers", color: '#000000', altColor: '#F1B82D', city: "Columbia, Mo.", conference: "Southwest Conference" },
   "MIT": { abbr: "MIT", mascot: "Engineers", color: '#A31F34', altColor: '#8A8B8C', city: "Cambridge, Mass.", conference: "University Athletic Association" },
   "Nebraska": { abbr: "NEB", mascot: "Cornhuskers", color: '#E41C38', altColor: '#FDF2D9', city: "Lincoln, Neb.", conference: "Big Ten", joins: 2032 },
+  "Nevada": { abbr: "NEV", mascot: "Wolf Pack", color: '#003366', altColor: '#807F84', city: "Reno, Nev.", conference: "Western Athletic Conference", crop: 3 },
   "North Carolina": { abbr: "UNC", mascot: "Tar Heels", color: '#7BAFD4', altColor: '#13294B', city: "Chapel Hill, N.C.", conference: "Coastal Atlantic Conference" },
+  "Northern Arizona": { abbr: "NAU", mascot: "Lumberjacks", color: '#003466', altColor: '#FFD200', city: "Flagstaff, Ariz.", conference: "Western Athletic Conference", crop: 3 },
   "Northwestern": { abbr: "NU", mascot: "Wildcats", color: '#4E2A84', altColor: '#FFFFFF', city: "Evanston, Ill.", conference: "Big Ten" },
   "Notre Dame": { abbr: "ND", mascot: "Fighting Irish", color: '#0C2340', altColor: '#C99700', city: "Notre Dame, Ind.", conference: "Coastal Atlantic Conference" },
   "NYU": { abbr: "NYU", mascot: "Violets", color: '#57068C', altColor: '#FFFFFF', city: "New York, N.Y.", conference: "University Athletic Association" },
   "Ohio State": { abbr: "OSU", mascot: "Buckeyes", color: '#BB0000', altColor: '#666666', city: "Columbus, Ohio", conference: "Big Ten" },
   "Oregon": { abbr: "ORE", mascot: "Ducks", color: '#154733', altColor: '#FEE123', city: "Eugene, Ore.", conference: "Pacific-10 Conference" },
+  "Oregon State": { abbr: "ORST", mascot: "Beavers", color: '#DC4405', altColor: '#000000', city: "Corvallis, Ore.", conference: "Western Athletic Conference", crop: 3 },
   "Penn": { abbr: "PENN", mascot: "Quakers", color: '#011F5B', altColor: '#990000', city: "Philadelphia, Pa.", conference: "Ivy League" },
   "Penn State": { abbr: "PSU", mascot: "Nittany Lions", color: '#041E42', altColor: '#FFFFFF', city: "University Park, Pa.", conference: "Big Ten" },
   "Pittsburgh": { abbr: "PITT", mascot: "Panthers", color: '#003594', altColor: '#FFB81C', city: "Pittsburgh, Pa.", conference: "Metro Conference" },
@@ -69,6 +75,7 @@ export const AAU_SCHOOLS = {
   "Rochester": { abbr: "ROCH", mascot: "Yellowjackets", color: '#001E5F', altColor: '#FFD100', city: "Rochester, N.Y.", conference: "University Athletic Association" },
   "Rutgers": { abbr: "RUTG", mascot: "Scarlet Knights", color: '#CC0033', altColor: '#5F6A72', city: "Piscataway, N.J.", conference: "Metro Conference" },
   "Saint Louis": { abbr: "SLU", mascot: "Billikens", color: '#003DA5', altColor: '#FFFFFF', city: "St. Louis, Mo.", conference: "Greater South Conference", crop: 3 },
+  "San Diego State": { abbr: "SDSU", mascot: "Aztecs", color: '#A6192E', altColor: '#000000', city: "San Diego, Calif.", conference: "Western Athletic Conference", crop: 3 },
   "SMU": { abbr: "SMU", mascot: "Mustangs", color: '#0033A0', altColor: '#C8102E', city: "Dallas, Texas", conference: "Southwest Conference", crop: 3 },
   "South Florida": { abbr: "USF", mascot: "Bulls", color: '#006747', altColor: '#CFC493', city: "Tampa, Fla.", conference: "Coastal Atlantic Conference" },
   "Stanford": { abbr: "STAN", mascot: "Cardinal", color: '#8C1515', altColor: '#FFFFFF', city: "Stanford, Calif.", conference: "Pacific-10 Conference" },
@@ -90,12 +97,15 @@ export const AAU_SCHOOLS = {
   "UC Santa Cruz": { abbr: "UCSC", mascot: "Banana Slugs", color: '#003C6C', altColor: '#FDC700', city: "Santa Cruz, Calif.", conference: "UC Athletic Association" },
   "UCLA": { abbr: "UCLA", mascot: "Bruins", color: '#2D68C4', altColor: '#F2A900', city: "Los Angeles, Calif.", conference: "Pacific-10 Conference" },
   "UConn": { abbr: "UCONN", mascot: "Huskies", color: '#000E2F', altColor: '#E4002B', city: "Storrs, Conn.", conference: "Metro Conference", joins: 2032 },
+  "UNLV": { abbr: "UNLV", mascot: "Rebels", color: '#CF0A2C', altColor: '#666666', city: "Las Vegas, Nev.", conference: "Western Athletic Conference", crop: 3 },
   "USC": { abbr: "USC", mascot: "Trojans", color: '#990000', altColor: '#FFC72C', city: "Los Angeles, Calif.", conference: "Pacific-10 Conference" },
   "UT Dallas": { abbr: "UTD", mascot: "Comets", color: '#E87500', altColor: '#154734', city: "Richardson, Texas", conference: "Southwest Conference", crop: 3 },
   "Utah": { abbr: "UTAH", mascot: "Utes", color: '#CC0000', altColor: '#000000', city: "Salt Lake City, Utah", conference: "Pacific-10 Conference" },
+  "Utah State": { abbr: "USU", mascot: "Aggies", color: '#0F2439', altColor: '#A2AAAD', city: "Logan, Utah", conference: "Western Athletic Conference", crop: 3 },
   "Vanderbilt": { abbr: "VAN", mascot: "Commodores", color: '#000000', altColor: '#CFAE70', city: "Nashville, Tenn.", conference: "Southwest Conference" },
   "Virginia": { abbr: "UVA", mascot: "Cavaliers", color: '#232D4B', altColor: '#E57200', city: "Charlottesville, Va.", conference: "Coastal Atlantic Conference" },
   "Washington": { abbr: "UW", mascot: "Huskies", color: '#4B2E83', altColor: '#B7A57A', city: "Seattle, Wash.", conference: "Pacific-10 Conference" },
+  "Washington State": { abbr: "WSU", mascot: "Cougars", color: '#981E32', altColor: '#5E6A71', city: "Pullman, Wash.", conference: "Western Athletic Conference", crop: 3 },
   "WashU": { abbr: "WUSTL", mascot: "Bears", color: '#A51417', altColor: '#007360', city: "St. Louis, Mo.", conference: "University Athletic Association" },
   "Wisconsin": { abbr: "WIS", mascot: "Badgers", color: '#C5050C', altColor: '#FFFFFF', city: "Madison, Wis.", conference: "Big Ten" },
   "Yale": { abbr: "YALE", mascot: "Bulldogs", color: '#00356B', altColor: '#FFFFFF', city: "New Haven, Conn.", conference: "Ivy League" },

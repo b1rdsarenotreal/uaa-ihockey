@@ -1,16 +1,16 @@
 // Shared UI state and pieces used by every page: the league, saving,
 // team labels and logos, game cards, and the game editor.
 
-import { saveLeague } from './store.js?v=20261117005235';
-import { logoFor } from './logos.js?v=20261117005235';
-import { LOGO_ALIASES } from './data.js?v=20261117005235';
-import { ovr, winProbability, matchOdds, isKnockout, QUARTERS, OT, OT_PERIODS } from './sim.js?v=20261117005235';
-import { records, isFinal, winnerOf, resultFor, isTie, sameConf } from './standings.js?v=20261117005235';
-import { latestPoll, pollRankMap } from './polls.js?v=20261117005235';
-import { afterChange, applyResult, clearResult, simResult, deleteGame, weekName, estimateHE } from './league.js?v=20261117005235';
-import { regWeeksOf, shownSeed, regionalSeed, mcwsVenue, gameVenue } from './postseason.js?v=20261117005235';
-import { DAY_ORDER, dateOf } from './schedule.js?v=20261117005235';
-import { esc } from './util.js?v=20261117005235';
+import { saveLeague } from './store.js?v=20261117010427';
+import { logoFor } from './logos.js?v=20261117010427';
+import { LOGO_ALIASES } from './data.js?v=20261117010427';
+import { ovr, winProbability, matchOdds, isKnockout, QUARTERS, OT, OT_PERIODS } from './sim.js?v=20261117010427';
+import { records, isFinal, winnerOf, resultFor, isTie, sameConf } from './standings.js?v=20261117010427';
+import { latestPoll, pollRankMap } from './polls.js?v=20261117010427';
+import { afterChange, applyResult, clearResult, simResult, deleteGame, weekName, estimateHE } from './league.js?v=20261117010427';
+import { regWeeksOf, shownSeed, regionalSeed, mcwsVenue, gameVenue } from './postseason.js?v=20261117010427';
+import { DAY_ORDER, dateOf } from './schedule.js?v=20261117010427';
+import { esc } from './util.js?v=20261117010427';
 
 // Logo files in this app (img/conf/) carry this release's version, like the
 // scripts do, so a redrawn logo shows right away instead of a cached copy.

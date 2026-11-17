@@ -93,7 +93,8 @@ unless the owner asks.
   Washington State) with the owner's pick for its logo, the 1992–2010 WAC
   logo linked from the web (`CONF_LOGO_LINKS.wac`), ready the same way.
 - Realignment from AAU Dynasty (`js/realign.js`, Nov. 2026): the hub's
-  Realignment page leaves a plan in localStorage `aau-realignment`; the
+  Realignment page leaves a plan in IndexedDB `aau-realignment` (read
+  when the app loads or comes back into view, never created here); the
   Offseason page shows it (`realignBanner`) with a review where each move,
   join and leave can be unticked (`realignModal`). Only teams in the AAU's
   all-sports conferences move; schools join only if they play this sport

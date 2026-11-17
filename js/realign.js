@@ -1,6 +1,6 @@
 // A realignment from the AAU Dynasty hub (its Realignment page, the owner's
-// ask, Nov. 2026). The hub leaves the plan in this browser's localStorage
-// (`aau-realignment`, shared by every app on the site): every AAU school's
+// ask, Nov. 2026). The hub leaves the plan in this browser (IndexedDB
+// `aau-realignment`, shared by every app on the site): every AAU school's
 // conference, the conferences' looks, who joins and who leaves. Here it
 // becomes this sport's changes, offered on the Offseason page: schools that
 // play this sport join (`AAU_PROGRAMS` lists them), members move, leavers
@@ -8,17 +8,58 @@
 // what to apply; the plan is then marked applied or skipped in this save
 // (`league.realign[planId]`), which the hub reads back.
 
-import { AAU_SCHOOLS, AAU_CONFERENCES, AAU_PROGRAMS } from './aau-schools.js?v=20261117005235';
-import { DEFAULT_LOGOS } from './logo-import.js?v=20261117005235';
-import { addConference, addTeam, draftRemoveTeam, deleteConference } from './league.js?v=20261117005235';
+import { AAU_SCHOOLS, AAU_CONFERENCES, AAU_PROGRAMS } from './aau-schools.js?v=20261117010427';
+import { DEFAULT_LOGOS } from './logo-import.js?v=20261117010427';
+import { addConference, addTeam, draftRemoveTeam, deleteConference } from './league.js?v=20261117010427';
 
 export const REALIGN_KEY = 'aau-realignment';
 // New schools start at this rating in each category; change it on the
 // Offseason page.
 export const JOIN_RATING = 60;
 
+// The plan is kept in its own IndexedDB database (`aau-realignment`, store
+// 'kv', key 'plan'; the site's shared localStorage is often full), read
+// here when the app loads and when it comes back into view. The database is
+// only opened if the hub made it.
+const DB = 'aau-realignment';
+let planCache = null;
+const valid = p => (p && p.id && p.schools ? p : null);
+function readDb() {
+  return new Promise(resolve => {
+    if (!globalThis.indexedDB) return resolve(null);
+    let req, created = false;
+    try { req = indexedDB.open(DB); } catch { return resolve(null); }
+    req.onupgradeneeded = () => { created = true; req.transaction.abort(); };
+    req.onerror = () => resolve(null);
+    req.onsuccess = () => {
+      const db = req.result;
+      if (created) { db.close(); return resolve(null); }
+      try {
+        const g = db.transaction('kv').objectStore('kv').get('plan');
+        g.onsuccess = () => { db.close(); resolve(g.result || null); };
+        g.onerror = () => { db.close(); resolve(null); };
+      } catch { db.close(); resolve(null); }
+    };
+  });
+}
+export async function loadRealignment() {
+  let p = await readDb();
+  if (!p) try { p = JSON.parse(globalThis.localStorage?.getItem(REALIGN_KEY) || 'null'); } catch { p = null; }
+  const before = planCache?.id;
+  planCache = valid(p);
+  return planCache?.id !== before;
+}
 export function readRealignment() {
-  try { const p = JSON.parse(localStorage.getItem(REALIGN_KEY) || 'null'); return p && p.id && p.schools ? p : null; } catch { return null; }
+  if (planCache) return planCache;
+  try { return valid(JSON.parse(globalThis.localStorage?.getItem(REALIGN_KEY) || 'null')); } catch { return null; }
+}
+// The Offseason page redraws when a plan turns up (views-league.js sets this).
+let onChange = null;
+export function onRealignmentLoaded(fn) { onChange = fn; }
+if (globalThis.document) {
+  const refresh = () => loadRealignment().then(changed => { if (changed) onChange?.(); }).catch(() => {});
+  refresh();
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') refresh(); });
 }
 
 // This sport's share of the waiting plan, or null (none, or already

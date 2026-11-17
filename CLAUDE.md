@@ -78,6 +78,11 @@ unless the owner asks.
   never moves. `pods(field, n, season)` applies it, so bracketology, the
   selection preview and the announced field agree. Bracketology and the
   preview show each regional's first-round matchups.
+- The Greater South Conference (the owner's, coming in; Kansas, Missouri,
+  Tulane, UAB, Vanderbilt, Iowa State, Saint Louis, Memphis) has its logo
+  ready (`gsc.svg`, the owner's pick: slanted GSC, striped S, compass in the
+  G; Saira Black): it's in the Add conference pick (`AAU_CONFERENCES`), and
+  a Greater South made by hand gets it on load (`migrateLeague`).
 
 ## Before every commit
 

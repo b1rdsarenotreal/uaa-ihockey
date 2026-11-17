@@ -268,3 +268,65 @@ svg('whc.svg', 'Western Hockey Conference', f"""
 <circle cx="60" cy="60" r="56" fill="none" stroke="#FFFFFF" stroke-width="2.5"/>""")
 
 print('wrote', sorted(os.listdir(OUT)))
+
+
+# Greater South Conference (the owner's pick, Nov. 2026): GSC slanted, the S
+# in crimson stripes that follow its outline, a compass set into the G with
+# a gap cut round it (gold points, crimson south). Lettering: Saira Black
+# (SIL Open Font License, tools/fonts/).
+SAIRA = TTFont(os.path.join(os.path.dirname(__file__), 'fonts', 'Saira-Black.woff'))
+GSC_NAVY, GSC_RED, GSC_GOLD = '#14284B', '#A3262C', '#D9A23A'
+
+
+def gsc_compass(cx, cy, r, cut=False):
+    out = ''
+    for i in [1, 3, 5, 7, 0, 2, 6, 4]:
+        a = math.pi * i / 4
+        tip_r = r if i % 2 == 0 else r * 0.55
+        w = r * (0.27 if i % 2 == 0 else 0.2)
+        tip = (cx + tip_r * math.sin(a), cy - tip_r * math.cos(a))
+        lft = (cx + w * math.sin(a - math.pi / 2), cy - w * math.cos(a - math.pi / 2))
+        rgt = (cx + w * math.sin(a + math.pi / 2), cy - w * math.cos(a + math.pi / 2))
+        fill = '#000' if cut else GSC_RED if i == 4 else GSC_GOLD if i % 2 == 0 else '#FFFFFF'
+        extra = ' stroke="#000" stroke-width="5" stroke-linejoin="round"' if cut else ''
+        out += (f'<polygon points="{lft[0]:.2f},{lft[1]:.2f} {tip[0]:.2f},{tip[1]:.2f} '
+                f'{rgt[0]:.2f},{rgt[1]:.2f} {cx:.2f},{cy:.2f}" fill="{fill}"{extra}/>')
+    if not cut:
+        out += (f'<circle cx="{cx:.2f}" cy="{cy:.2f}" r="{r * 0.13:.2f}" fill="{GSC_NAVY}" '
+                f'stroke="{GSC_GOLD}" stroke-width="{r * 0.07:.2f}"/>')
+    return out
+
+
+def gsc():
+    gs, cmap = SAIRA.getGlyphSet(), SAIRA.getBestCmap()
+    cap = 50
+    b = BoundsPen(gs); gs[cmap[ord('S')]].draw(b)
+    k = cap / (b.bounds[3] - b.bounds[1])
+    x, letters = 0, []
+    for ch in 'GSC':
+        n = cmap[ord(ch)]
+        pen, bp = SVGPathPen(gs), BoundsPen(gs)
+        gs[n].draw(TransformPen(pen, (k, 0, 0, -k, x, cap)))
+        gs[n].draw(TransformPen(bp, (k, 0, 0, -k, x, cap)))
+        letters.append((pen.getCommands(), bp.bounds))
+        x += gs[n].width * k + 0.02 * cap
+    (g, gb), (s, _), (c, cb) = letters
+    sk = math.tan(math.radians(12))                    # slant, baseline fixed
+    slant = lambda px, py: px - sk * py + sk * cap
+    cx, cy, r = slant((gb[0] + gb[2]) / 2, cap / 2), cap / 2, 14
+    stem = 11
+    band, gap = stem * 0.25, stem * 0.13
+    left, right = slant(gb[0], cap), slant(cb[2], 0)
+    scale = min(114 / (right - left), 2.0)
+    ox, oy = 60 - (left + right) / 2 * scale, (120 - cap * scale) / 2
+    svg('gsc.svg', 'Greater South Conference', f"""
+<g transform="translate({ox:.2f} {oy:.2f}) scale({scale:.4f})"><defs><clipPath id="gscS"><path d="{s}"/></clipPath>
+<mask id="gscStripes" maskUnits="userSpaceOnUse" x="-20" y="-20" width="400" height="120"><g clip-path="url(#gscS)"><path d="{s}" fill="#fff"/><path d="{s}" fill="none" stroke="#000" stroke-width="{2 * (band + gap):.2f}" stroke-linejoin="round"/><path d="{s}" fill="none" stroke="#fff" stroke-width="{2 * band:.2f}" stroke-linejoin="round"/></g></mask>
+<mask id="gscCut" maskUnits="userSpaceOnUse" x="-60" y="-40" width="400" height="160"><rect x="-60" y="-40" width="400" height="160" fill="#fff"/>{gsc_compass(cx, cy, r, cut=True)}</mask></defs>
+<g mask="url(#gscCut)"><g transform="matrix(1 0 {-sk:.4f} 1 {sk * cap:.2f} 0)">
+<path d="{g} {s} {c}" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="6" stroke-linejoin="round"/>
+<path d="{g}" fill="{GSC_NAVY}"/><path d="{c}" fill="{GSC_NAVY}"/><path d="{s}" fill="{GSC_RED}" mask="url(#gscStripes)"/></g></g>
+{gsc_compass(cx, cy, r)}</g>""")
+
+
+gsc()

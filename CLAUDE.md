@@ -71,6 +71,17 @@ unless the owner asks.
   directly) and default settings (`defaultSettings(side)`).
 - Ratings come from the 2025-26 season (see `js/data.js`); coaches are the
   real 2026-27 head coaches.
+- Conference home and away (`js/homeaway.js`, the owner's rule, Nov. 2026):
+  no team plays more than two conference weekends in a row away (`MAX_AWAY`)
+  or three at home (`MAX_HOME`); a week without a conference game ends a
+  run. `generateSchedule` draws the season (`drawSchedule`), then
+  `spreadConfHomes` trades hosts between a pair's two meetings, turns around
+  triangles of single meetings or a single meeting (every team within one
+  game or series of half), and trades two conference weeks when every team
+  plays on the same days in both. A pair meeting twice keeps one at each
+  school. Once-a-year hosts still swap every year (`keepSwaps`); it may also
+  move a series to a week both teams have open (not the holiday break), and
+  a rare team may still go three weekends away.
 - Regionals avoid first-round matchups between conference rivals
   (`avoidConferenceMatchups` in `js/postseason.js`, the owner's rule): after
   the serpentine, teams on one seed line trade regionals (lowest lines

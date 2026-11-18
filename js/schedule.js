@@ -18,9 +18,10 @@
 // later), so the season fills `regWeeks` (22).
 // When `prev` (last season) is given, series hosts swap from last year.
 
-import { isIndependent } from './standings.js?v=20261117010427';
-import { cityPoint, miles } from './geo.js?v=20261117010427';
-import { rng, shuffle, hashStr } from './util.js?v=20261117010427';
+import { isIndependent } from './standings.js?v=20261117182452';
+import { cityPoint, miles } from './geo.js?v=20261117182452';
+import { rng, shuffle, hashStr } from './util.js?v=20261117182452';
+import { spreadConfHomes } from './homeaway.js?v=20261117182452';
 
 export const DEFAULT_REG_WEEKS = 22;
 export const DEFAULT_TOURNEY_WEEKS = 0; // kept for older code paths
@@ -302,7 +303,27 @@ export function eventSizes(n, events = Math.floor(n / 4)) {
 }
 
 
+// The season's schedule. Once it's drawn, conference hosts (and, where a
+// week allows, the order of conference weeks) are set so no team plays more
+// than two conference weekends in a row away, or three at home (the owner's
+// rule, Nov. 2026; `js/homeaway.js`). Travel-partner conferences are already
+// built that way.
 export function generateSchedule(season, seed = hashStr(String(season.year)), prev = null) {
+  const games = drawSchedule(season, seed, prev);
+  const last = new Map();
+  for (const g of prev?.games || []) if (g.type === 'regular' && (g.slot === 0 || (g.slot == null && g.day === 'Fri'))) last.set(key(g.home, g.away), g.home); // as the draw reads it
+  const sorted = games.every((g, i) => !i || games[i - 1].week <= g.week);
+  spreadConfHomes(games, season.teams, rng((seed ^ 0x5bd1e995) >>> 0), {
+    skip: c => (season.partnerConfs || []).includes(c),
+    lastHost: (a, b) => { const h = last.get(key(a, b)); return h && h !== 'both' ? h : null; },
+    keepSwaps: true,
+    canMoveTo: w => !breakWeek(season.year, w),
+  });
+  if (sorted) games.sort((a, b) => a.week - b.week);
+  return games;
+}
+
+function drawSchedule(season, seed, prev) {
   const r = rng(seed);
   const teams = season.teams, year = season.year;
   const names = Object.keys(teams);

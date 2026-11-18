@@ -315,3 +315,34 @@ console.log(`${n} checks ok in ${Date.now() - t0} ms`);
   assert2.equal(R.realignmentFor(d), null, 'applied once');
   console.log('realignment ok' + (joiner ? ` (${joiner} joins)` : ''));
 }
+
+// Conference home and away (the owner's rule, Nov. 2026): no team plays more
+// than two conference weekends in a row away, or three at home, this season
+// or the next (when once-a-year pairs swap hosts).
+{
+  const LG = await import('../js/league.js');
+  const SC = await import('../js/schedule.js');
+  const { homeAwayRuns, MAX_AWAY, MAX_HOME } = await import('../js/homeaway.js');
+  const assert3 = (await import('node:assert/strict')).default;
+  for (const side of ['women', 'men']) {
+    const s = LG.currentSeason(LG.newLeague({ side }));
+    let prev = null, over = 0, teams = 0;
+    for (let y = 0; y < 3; y++) {
+      const games = SC.generateSchedule(s, 900 + y, prev);
+      const runs = homeAwayRuns(games, s.teams);
+      const bad = Object.entries(runs).filter(([, v]) => v.away > MAX_AWAY || v.home > MAX_HOME);
+      if (!prev) assert3.equal(bad.length, 0, `${side}: ${bad.map(([t, v]) => `${t} ${v.away} away, ${v.home} home`).join('; ')}`);
+      over += bad.length; teams += Object.keys(runs).length;
+      // A pair that meets twice still plays once at each school.
+      const hosts = {};
+      for (const g of games) if (g.type === 'regular' && g.confGame && !g.neutral) { const k = [g.home, g.away].sort().join('|'); (hosts[k] ||= new Set()).add(g.home); }
+      const twice = {};
+      for (const g of games) if (g.type === 'regular' && g.confGame && !g.neutral) { const k = [g.home, g.away].sort().join('|'); (twice[k] ||= new Set()).add(g.week); }
+      for (const [k, w] of Object.entries(twice)) if (w.size > 1) assert3.equal(hosts[k].size, 2, `${k} meets twice, once at each school`);
+      prev = { games };
+    }
+    // With last year's hosts swapped, the rule holds for nearly every team.
+    assert3.ok(over <= Math.ceil(teams * 0.02), `${side}: ${over} of ${teams} teams over the limit`);
+  }
+  console.log('conference home and away ok');
+}

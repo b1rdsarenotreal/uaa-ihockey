@@ -34,8 +34,15 @@ unless the owner asks.
   (the owner's rules, Nov. 2026; `confSeries: 'auto'`, `nonConf: 'fill'`):
   a conference of `confTwiceMax` (7) or fewer plays everyone twice, a series
   at each rink; a bigger one everyone once, the host swapping every year;
+  men's conferences then play at least `confMin` (24) conference games
+  (the owner's rule, Nov. 2026; `scheduleVersion` 3 set it on men's saves):
+  a conference short of it adds a series with some opponents (second
+  meetings at the other rink, or third meetings; one more meeting a pair at
+  most, nearby rivals more often), the same number for every member;
   non-conference series against a different team each time fill to
-  `maxMatches` (34) games. The older 'split'/'twice' and 'single'/'series'
+  `maxMatches` (34) games, and teams left short take over a series between
+  two others (a far-off conference's neighbors fill up with each other
+  first). The older 'split'/'twice' and 'single'/'series'
   settings still work. Weekends are spread over `regWeeks` (22),
   non-conference first.
 - Postseason stages keep the MCS internal names: `regionals`, `supers`,

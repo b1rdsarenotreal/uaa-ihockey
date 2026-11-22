@@ -6,7 +6,9 @@
 // rules, Nov. 2026; both sides, `confSeries: 'auto'`, `nonConf: 'fill'`):
 // - conference: in a conference of `confTwiceMax` (7) teams or fewer, two
 //   series against each opponent, one at each rink (4 games); in a bigger
-//   one, one series against each, the host swapping every year;
+//   one, one series against each, the host swapping every year; then, if a
+//   conference comes up short of `confMin` games (men's 24), extra series
+//   (second or third meetings) bring every member up to it;
 // - non-conference: series against teams from other conferences, a
 //   different one each time and nearby teams of a similar level first,
 //   until a team has about `maxMatches` (34) games.
@@ -18,10 +20,10 @@
 // later), so the season fills `regWeeks` (22).
 // When `prev` (last season) is given, series hosts swap from last year.
 
-import { isIndependent } from './standings.js?v=20261117182452';
-import { cityPoint, miles } from './geo.js?v=20261117182452';
-import { rng, shuffle, hashStr } from './util.js?v=20261117182452';
-import { spreadConfHomes } from './homeaway.js?v=20261117182452';
+import { isIndependent } from './standings.js?v=20261121190812';
+import { cityPoint, miles } from './geo.js?v=20261121190812';
+import { rng, shuffle, hashStr } from './util.js?v=20261121190812';
+import { spreadConfHomes } from './homeaway.js?v=20261121190812';
 
 export const DEFAULT_REG_WEEKS = 22;
 export const DEFAULT_TOURNEY_WEEKS = 0; // kept for older code paths
@@ -357,12 +359,66 @@ function drawSchedule(season, seed, prev) {
     } else if (ncMode === 'series') meetings.push({ a, b, kind: 'host', host: null, conf: false });
     else if (ncMode === 'single') meetings.push({ a, b, kind: 'single', conf: false });
   }
+  // Fewest conference games (`confMin`, the owner's rule, Nov. 2026; men's
+  // 24): a conference whose round robin comes up short adds series, the same
+  // number for every member (one more meeting per opponent at most). In a once-a-year conference these are second
+  // meetings, at the other school; in a twice-a-year one, third meetings.
+  // Who meets again is drawn each year, nearby rivals more often.
+  const minSeries = confMode === 'auto' ? Math.ceil((st.confMin ?? 0) / 2) : 0;
+  const extraConf = [];
+  if (minSeries) {
+    const pts0 = Object.fromEntries(names.map(n => [n, cityPoint(teams[n].city)]));
+    const far = (a, b) => (pts0[a] && pts0[b] ? miles(pts0[a], pts0[b]) : 900);
+    for (const [conf, n] of Object.entries(size)) {
+      if (n < 2) continue;
+      const list = names.filter(t => teams[t].conference === conf);
+      // One more meeting with an opponent at most (a small conference may
+      // stay short of `confMin`).
+      let extra = Math.min(n - 1, minSeries - (modeOf(conf) === 'twice' ? 2 * (n - 1) : n - 1));
+      const taken = new Set();
+      while (extra > 0) {
+        // A d-regular set of pairs (d more series each): a circulant on a
+        // shuffled order, the closest of several draws.
+        let d = Math.min(extra, n - 1);
+        if (n % 2 && d % 2) d++;
+        let best = null, bc = Infinity;
+        for (let tries = 0; tries < 40; tries++) {
+          const o = shuffle(list, r), pairs = [];
+          for (let k = 1; k <= Math.floor(d / 2); k++) for (let i = 0; i < n; i++) pairs.push([o[i], o[(i + k) % n]]);
+          if (d % 2) for (let i = 0; i < n / 2; i++) pairs.push([o[i], o[i + n / 2]]);
+          if (d < n - 1 && pairs.some(([a, b]) => taken.has(key(a, b)))) continue;
+          const c = pairs.reduce((x, [a, b]) => x + far(a, b), 0) + r() * 300 * n;
+          if (c < bc) { bc = c; best = pairs; }
+        }
+        if (!best) break;
+        for (const [a, b] of best) {
+          taken.add(key(a, b));
+          const first = meetings.find(m => m.conf && key(m.a, m.b) === key(a, b) && !m.twin && onceEdges.includes(m));
+          const m = { a, b, kind: 'host', host: null, conf: true, extra: true };
+          if (first) first.twin = m;
+          meetings.push(m); extraConf.push(m);
+        }
+        extra -= d;
+      }
+    }
+  }
   // One series a year against each conference opponent: the host swaps from
   // last year; pairs that didn't meet last year are set so every member
-  // hosts about half its series.
+  // hosts about half its series. A pair meeting twice plays at each school.
   const confHome = Object.fromEntries(names.map(n => [n, 0]));
-  for (const m of onceEdges) if (m.host) confHome[m.host]++;
-  for (const m of shuffle(onceEdges.filter(m => !m.host), r)) { m.host = confHome[m.a] <= confHome[m.b] ? m.a : m.b; confHome[m.host]++; }
+  for (const m of onceEdges) if (m.host && !m.twin) confHome[m.host]++;
+  for (const m of shuffle(onceEdges.filter(m => !m.host), r)) {
+    if (m.twin) { m.host = r() < 0.5 ? m.a : m.b; continue; }
+    m.host = confHome[m.a] <= confHome[m.b] ? m.a : m.b; confHome[m.host]++;
+  }
+  for (const m of onceEdges) if (m.twin) m.twin.host = m.host === m.a ? m.b : m.a;
+  // Third meetings: whoever has fewer conference home series.
+  const allHome = Object.fromEntries(names.map(n => [n, 0]));
+  for (const m of meetings) if (m.conf && m.host) allHome[m.host]++;
+  for (const m of shuffle(extraConf.filter(m => !m.host), r)) {
+    m.host = allHome[m.a] < allHome[m.b] ? m.a : allHome[m.b] < allHome[m.a] ? m.b : r() < 0.5 ? m.a : m.b;
+    allHome[m.host]++;
+  }
   // Non-conference series up to the games cap: each team (busiest first)
   // takes a different opponent from another conference, nearby and of a
   // similar level, until it has about `maxMatches` games.
@@ -394,6 +450,59 @@ function drawSchedule(season, seed, prev) {
         met.set(key(a, best), (met.get(key(a, best)) || 0) + 1);
         want[a]--; want[best]--; progress = true;
       }
+    }
+    // Teams left short (a far-off conference whose neighbors filled up with
+    // each other first) take over a series between two others: x–y becomes
+    // a–x and b–y (or a–x and a–y when a is two short).
+    const ncMeet = (m) => !m.conf && m.kind === 'host';
+    for (let tries = 0; tries < 400; tries++) {
+      const short = names.filter(n => want[n] > 0 && names.some(o => want[o] <= want[n] - 2 || (o !== n && want[o] > 0)));
+      if (!short.length) break;
+      const a = short[Math.floor(r() * short.length)];
+      const bs = [...short.filter(b => b !== a), ...(want[a] >= 2 ? [a] : [])];
+      if (!bs.length) break;
+      let best = null, bc = Infinity;
+      for (const b of bs) for (const m of meetings) {
+        if (!ncMeet(m)) continue;
+        for (const [x, y] of [[m.a, m.b], [m.b, m.a]]) {
+          if ([a, b].includes(x) || [a, b].includes(y)) continue;
+          if (rival(teams, a, x) || rival(teams, b, y) || met.get(key(a, x)) || met.get(key(b, y))) continue;
+          const c = dist(a, x) + dist(b, y) + Math.abs(lvl(a) - lvl(x)) * 30 + Math.abs(lvl(b) - lvl(y)) * 30 + r() * 500;
+          if (c < bc) { bc = c; best = { b, m, x, y }; }
+        }
+      }
+      if (!best) {
+        // Nobody to pair with: take a series from a team two or more
+        // series better off instead (x–y becomes a–x).
+        let t = null, tc = Infinity;
+        for (const m of meetings) {
+          if (!ncMeet(m)) continue;
+          for (const [x, y] of [[m.a, m.b], [m.b, m.a]]) {
+            if (x === a || y === a || want[y] > want[a] - 2 || rival(teams, a, x) || met.get(key(a, x))) continue;
+            const c = dist(a, x) + Math.abs(lvl(a) - lvl(x)) * 30 + r() * 500;
+            if (c < tc) { tc = c; t = { m, x, y }; }
+          }
+        }
+        if (!t) continue;
+        meetings.splice(meetings.indexOf(t.m), 1);
+        met.set(key(t.m.a, t.m.b), (met.get(key(t.m.a, t.m.b)) || 1) - 1);
+        let [u, v] = shuffle([a, t.x], r);
+        if (lastHost(u, v) === u) [u, v] = [v, u];
+        meetings.push({ a: u, b: v, kind: 'host', host: null, conf: false, swap: !!lastHost(u, v) });
+        met.set(key(a, t.x), (met.get(key(a, t.x)) || 0) + 1);
+        want[a]--; want[t.y]++;
+        continue;
+      }
+      const { b, m, x, y } = best;
+      meetings.splice(meetings.indexOf(m), 1);
+      met.set(key(m.a, m.b), (met.get(key(m.a, m.b)) || 1) - 1);
+      for (const [p, q] of [[a, x], [b, y]]) {
+        let [u, v] = shuffle([p, q], r);
+        if (lastHost(u, v) === u) [u, v] = [v, u];
+        meetings.push({ a: u, b: v, kind: 'host', host: null, conf: false, swap: !!lastHost(u, v) });
+        met.set(key(p, q), (met.get(key(p, q)) || 0) + 1);
+      }
+      want[a]--; want[b]--;
     }
   }
   // Non-conference hosts: whoever has hosted fewer series so far (counting

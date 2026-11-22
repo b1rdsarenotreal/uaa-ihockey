@@ -1,15 +1,15 @@
 // League (dynasty) lifecycle: creating the league, saving results,
 // simulating, adding teams and conferences, and rolling into new seasons.
 
-import { DEFAULT_LOGOS, AAU_LOGO_SET } from './logo-import.js?v=20261117182452';
-import { START_YEAR, CONFERENCES, CONF_LOGO_LINKS, COACHES, SIDES, sideOf, conferencesFor, seedTeams, makeTeam, fillSite } from './data.js?v=20261117182452';
-import { generateSchedule, blankGame, DAY_ORDER, DEFAULT_REG_WEEKS, DEFAULT_TOURNEY_WEEKS, DEFAULT_CONF_MATCHES, DEFAULT_MAX_MATCHES, TWICE_MAX, PER_WEEK, confWeeksFor, confWeeksMax, confRounds, confSeriesCounts, confTarget } from './schedule.js?v=20261117182452';
-import { simulateGame, estimateHitsErrors } from './sim.js?v=20261117182452';
-import { generatePoll, releaseDuePolls } from './polls.js?v=20261117182452';
-import { replayRatings, ensureBase } from './ratings.js?v=20261117182452';
-import { progress, lockField, postWeeks, allEvents, regWeeksOf, fieldSize, DEFAULT_NCAA, OLD_DEFAULT_NCAA, pickConfHosts, postseasonFinish, fixEarlyWeekDates, citySiteNames, wsTeams } from './postseason.js?v=20261117182452';
-import { isFinal, records, INDEPENDENT } from './standings.js?v=20261117182452';
-import { rng, normal, clamp, hashStr } from './util.js?v=20261117182452';
+import { DEFAULT_LOGOS, AAU_LOGO_SET } from './logo-import.js?v=20261121190812';
+import { START_YEAR, CONFERENCES, CONF_LOGO_LINKS, COACHES, SIDES, sideOf, conferencesFor, seedTeams, makeTeam, fillSite } from './data.js?v=20261121190812';
+import { generateSchedule, blankGame, DAY_ORDER, DEFAULT_REG_WEEKS, DEFAULT_TOURNEY_WEEKS, DEFAULT_CONF_MATCHES, DEFAULT_MAX_MATCHES, TWICE_MAX, PER_WEEK, confWeeksFor, confWeeksMax, confRounds, confSeriesCounts, confTarget } from './schedule.js?v=20261121190812';
+import { simulateGame, estimateHitsErrors } from './sim.js?v=20261121190812';
+import { generatePoll, releaseDuePolls } from './polls.js?v=20261121190812';
+import { replayRatings, ensureBase } from './ratings.js?v=20261121190812';
+import { progress, lockField, postWeeks, allEvents, regWeeksOf, fieldSize, DEFAULT_NCAA, OLD_DEFAULT_NCAA, pickConfHosts, postseasonFinish, fixEarlyWeekDates, citySiteNames, wsTeams } from './postseason.js?v=20261121190812';
+import { isFinal, records, INDEPENDENT } from './standings.js?v=20261121190812';
+import { rng, normal, clamp, hashStr } from './util.js?v=20261121190812';
 
 export const SCHEMA_VERSION = 4;
 
@@ -18,7 +18,7 @@ export const SCHEMA_VERSION = 4;
 // Women's: two series with each conference opponent and a series against
 // everyone else; Frozen Four Friday and Sunday. Both: 8-team national
 // tournaments, the quarterfinals at the higher seed's rink.
-const MEN_SETTINGS = { finalDays: ['Thu', 'Sat'], mcwsVenue: 'Xcel Energy Center', mcwsCity: 'St. Paul, Minn.' };
+const MEN_SETTINGS = { confMin: 24, finalDays: ['Thu', 'Sat'], mcwsVenue: 'Xcel Energy Center', mcwsCity: 'St. Paul, Minn.' };
 export function defaultSettings(side = 'women') {
   const base = {
     index: 'npi', volatility: 1, confTourney: {}, confFormat: {}, mcwsName: 'Frozen Four', mcwsVenue: 'Ridder Arena', mcwsCity: 'Minneapolis, Minn.', aqMin: 4, development: 'normal', form: 'normal',
@@ -46,7 +46,7 @@ export function newLeague({ side = 'women', name = SIDES[side === 'men' ? 'men' 
     schema: SCHEMA_VERSION, name, currentYear: year,
     conferences: JSON.parse(JSON.stringify(conferences)),
     coaches: {}, nextCoachId: 1,
-    seasons: { [year]: season }, side, sport: 'hockey', scheduleVersion: 2, indexVersion: 1, logoSet: AAU_LOGO_SET, alignment: ALIGNMENT,
+    seasons: { [year]: season }, side, sport: 'hockey', scheduleVersion: 3, indexVersion: 1, logoSet: AAU_LOGO_SET, alignment: ALIGNMENT,
   };
   ensureIndependent(league);
   for (const t of Object.values(teams)) { t.coachId = t.coach ? newCoach(league, t.coach) : null; delete t.coach; }
@@ -591,6 +591,17 @@ export function migrateLeague(league) {
       if (!se.games.some(g => g.type === 'regular' && isFinal(g)) && !league.draft) rebuildSchedule(se, league.seasons[se.year - 1] || null);
     }
     league.scheduleVersion = 2; league.migrated = true;
+  }
+  // Men's conferences play at least 24 conference games (the owner's rule,
+  // Nov. 2026): the current season switches, with a new schedule if no game
+  // has been played (otherwise from next season on).
+  if ((league.scheduleVersion || 0) < 3) {
+    const se = league.seasons?.[league.currentYear];
+    if (se && !women && se.settings.confMin == null) {
+      se.settings.confMin = 24;
+      if (!se.games.some(g => g.type === 'regular' && isFinal(g)) && !league.draft) rebuildSchedule(se, league.seasons[se.year - 1] || null);
+    }
+    league.scheduleVersion = 3; league.migrated = true;
   }
   // The NPI replaces the RPI (the owner's request, Nov. 2026): the current
   // season switches if its field isn't set yet, otherwise the next one does.

@@ -90,9 +90,14 @@ for (const side of ['women', 'men']) check(`${side}'s schedule: two-game series,
     const [a, b] = [names[i], names[j]], list = meets[[a, b].sort().join('|')] || [];
     if (s.teams[a].conference !== s.teams[b].conference) { assert.ok(list.length <= 2 || list.length === 4, `${a}-${b}`); assert.ok(list.every(x => !x.confGame)); continue; }
     assert.ok(list.every(x => x.confGame));
-    if (size[s.teams[a].conference] <= 7) { assert.equal(list.length, 4, `${a}-${b}`); assert.equal(list.filter(x => x.home === a).length, 2, 'a series at each rink'); }
-    else assert.equal(list.length, 2, `${a}-${b}: one series`);
+    if (size[s.teams[a].conference] <= 7) { assert.ok(list.length >= 4, `${a}-${b}`); assert.ok(list.some(x => x.home === a) && list.some(x => x.home === b), 'a series at each rink'); }
+    else if (side === 'women') assert.equal(list.length, 2, `${a}-${b}: one series`);
+    else { assert.ok(list.length === 2 || list.length === 4, `${a}-${b}: one or two series`); if (list.length === 4) assert.equal(list.filter(x => x.home === a).length, 2, 'a second series at the other rink'); }
   }
+  // Men's: every team plays at least 24 conference games (the owner's rule).
+  const conf = {};
+  for (const x of g) if (x.confGame) for (const t of [x.home, x.away]) conf[t] = (conf[t] || 0) + 1;
+  if (side === 'men') assert.ok(Object.values(conf).every(n => n >= 24), `conference games ${Math.min(...Object.values(conf))}`);
   const totals = Object.values(count(g));
   assert.ok(Math.min(...totals) >= 32 && Math.max(...totals) <= 34, `${Math.min(...totals)}–${Math.max(...totals)} games`);
   console.log(`  ${side}: ${Math.min(...totals)}–${Math.max(...totals)} games per team over ${s.regWeeks} weeks`);
@@ -101,12 +106,20 @@ for (const side of ['women', 'men']) check(`${side}'s schedule: two-game series,
 
 check('a conference of 8 or more: one series each, the host swaps every year', () => {
   const L = newLeague({ side: 'men' }), s = currentSeason(L);
-  const hostOf = se => { const m = new Map(); for (const x of reg(se)) if (x.confGame && x.slot === 0) m.set([x.home, x.away].sort().join('|'), x.home); return m; };
+  // Pairs meeting once in both years (men's add second meetings to reach 24
+  // conference games; those are at each rink).
+  const hostOf = se => { const m = new Map(); for (const x of reg(se)) if (x.confGame && x.slot === 0) { const k = [x.home, x.away].sort().join('|'); m.set(k, [...(m.get(k) || []), x.home]); } return m; };
   const h1 = hostOf(s);
   simGames(s, undefined, { autoLock: true, max: 9000 }); beginOffseason(L); startNextSeason(L);
   const h2 = hostOf(currentSeason(L));
-  assert.ok(h1.size > 50);
-  for (const [k, v] of h1) assert.notEqual(h2.get(k), v, k);
+  let once = 0;
+  for (const [k, v] of h1) {
+    const w = h2.get(k);
+    if (v.length === 2) assert.notEqual(v[0], v[1], `${k} at each rink`);
+    if (v.length !== 1 || w?.length !== 1) continue;
+    once++; assert.notEqual(w[0], v[0], k);
+  }
+  assert.ok(once > 10, `${once} once-a-year pairs`);
 });
 
 check('older saves switch to two-game series', () => {
@@ -230,7 +243,7 @@ check('offseason and the next season', () => {
   const s2 = startNextSeason(league);
   assert.equal(s2.year, 2031);
   const conf = count(reg(s2).filter(g => g.confGame && s2.teams[g.home].conference === 'West Coast'));
-  assert.deepEqual(Object.values(conf), [8, 8, 8], 'a 3-team conference: a series at each rink with both opponents');
+  assert.deepEqual(Object.values(conf), [12, 12, 12], 'a 3-team conference: a series at each rink with both opponents, and a third (men\'s 24-game minimum, one more meeting at most)');
   rebuildSchedule(s2, prev);
   assert.ok(reg(s2).length > 150);
 });

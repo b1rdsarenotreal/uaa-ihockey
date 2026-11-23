@@ -118,6 +118,9 @@ unless the owner asks.
   owner's picks (Nov. 2026): `rwc.svg`, RWC slanted in Saira Black, forest
   green, before a snow-capped range and a gold sun; `c10.svg`, a block C in
   red and white stripes and a navy 10 in Bungee, a red star over the 1.
+  The three conferences' thirty schools are in the Add team pick
+  (`AAU_SCHOOLS`, `crop: 4`: ESPN logos, `AAU_PROGRAMS` venues for the
+  sports each plays, coaches added by hand), not in the starting league.
 - Realignment from AAU Dynasty (`js/realign.js`, Nov. 2026): the hub's
   Realignment page leaves a plan in IndexedDB `aau-realignment` (read
   when the app loads or comes back into view, never created here); the

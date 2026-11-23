@@ -17,10 +17,10 @@
 // supers and mcws. The format is locked into the season when the field is
 // announced.
 
-import { blankGame, DAY_ORDER } from './schedule.js?v=20261122201538';
-import { sameConf, records, rpi, rating, indexName, usesNpi, confStandings, conferences, isFinal, winnerOf, loserOf, isTie, resultFor, regularSeasonDone, regSeasonChamp, regSeasonChamps, quadrants } from './standings.js?v=20261122201538';
-import { generatePoll } from './polls.js?v=20261122201538';
-import { hashStr } from './util.js?v=20261122201538';
+import { blankGame, DAY_ORDER } from './schedule.js?v=20261122204517';
+import { sameConf, records, rpi, rating, indexName, usesNpi, confStandings, conferences, isFinal, winnerOf, loserOf, isTie, resultFor, regularSeasonDone, regSeasonChamp, regSeasonChamps, quadrants } from './standings.js?v=20261122204517';
+import { generatePoll } from './polls.js?v=20261122204517';
+import { hashStr } from './util.js?v=20261122204517';
 
 // ---------- tournament format ----------
 

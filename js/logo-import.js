@@ -29,6 +29,7 @@ export const DEFAULT_LOGOS = {
   'Utah State': 'https://a.espncdn.com/i/teamlogos/ncaa/500/328.png',
   'Washington State': 'https://a.espncdn.com/i/teamlogos/ncaa/500/265.png',
   // The owner's fourth crop (Nov. 2026): ESPN's logos.
+  'Boston College': 'https://a.espncdn.com/i/teamlogos/ncaa/500/103.png',
   "Colorado State": 'https://a.espncdn.com/i/teamlogos/ncaa/500/36.png',
   Denver: 'https://a.espncdn.com/i/teamlogos/ncaa/500/2172.png',
   "Colorado School of Mines": 'https://a.espncdn.com/i/teamlogos/ncaa/500/2146.png',

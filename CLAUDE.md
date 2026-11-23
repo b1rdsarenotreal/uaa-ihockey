@@ -110,6 +110,14 @@ unless the owner asks.
   Arizona, San Diego State, Nevada, UNLV, Oregon State, BYU, Utah State,
   Washington State) with the owner's pick for its logo, the 1992–2010 WAC
   logo linked from the web (`CONF_LOGO_LINKS.wac`), ready the same way.
+- The Rocky West Conference (the owner's, coming in; Colorado State, Denver,
+  Colorado School of Mines, Montana, Montana State, North Dakota, North
+  Dakota State, New Mexico, New Mexico State, UTEP, UTSA) and the Colonial 10
+  (Northeastern, UMass Amherst, Lehigh, Temple, Rhode Island, East Carolina,
+  Charlotte, George Mason, VCU) have their logos ready the same way, the
+  owner's picks (Nov. 2026): `rwc.svg`, RWC slanted in Saira Black, forest
+  green, before a snow-capped range and a gold sun; `c10.svg`, a block C in
+  red and white stripes and a navy 10 in Bungee, a red star over the 1.
 - Realignment from AAU Dynasty (`js/realign.js`, Nov. 2026): the hub's
   Realignment page leaves a plan in IndexedDB `aau-realignment` (read
   when the app loads or comes back into view, never created here); the

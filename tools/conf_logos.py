@@ -372,3 +372,73 @@ def hvc():
 
 
 hvc()
+
+
+# Rocky West Conference and Colonial 10 (the owner's, coming in; his picks,
+# Nov. 2026).
+def word(font, s, cx, cy, cap, spacing=0.0, width=None):
+    """Outlined text with cap height `cap` (squeezed to `width` if wider),
+    centered on (cx, cy): (d, left, right, top, bottom)."""
+    gs, cmap = font.getGlyphSet(), font.getBestCmap()
+    names = [cmap[ord(ch)] for ch in s]
+    b = BoundsPen(gs); gs[cmap[ord('H')]].draw(b)
+    k = cap / b.bounds[3]
+    adv = lambda: sum(gs[n].width for n in names) * k + spacing * (len(s) - 1)
+    if width and adv() > width:
+        k *= (width - spacing * (len(s) - 1)) / (adv() - spacing * (len(s) - 1)); cap = b.bounds[3] * k
+    w = adv(); x, parts, base = cx - w / 2, [], cy + cap / 2
+    for n in names:
+        pen = SVGPathPen(gs); gs[n].draw(TransformPen(pen, (k, 0, 0, -k, x, base)))
+        parts.append(pen.getCommands()); x += gs[n].width * k + spacing
+    return ' '.join(parts), cx - w / 2, cx + w / 2, base - cap, base
+
+
+def star_points(cx, cy, r, inner=0.4):
+    return ' '.join(f'{cx + (r if i % 2 == 0 else r * inner) * math.cos(math.radians(-90 + 36 * i)):.2f},'
+                    f'{cy + (r if i % 2 == 0 else r * inner) * math.sin(math.radians(-90 + 36 * i)):.2f}' for i in range(10))
+
+
+# Rocky West Conference (Option A): RWC slanted in Saira Black, forest green
+# with a white edge, in front of a slate range with snowcaps and a gold sun.
+RWC_PINE, RWC_SLATE, RWC_GOLD = '#1F4D3A', '#3E5C76', '#E3A72F'
+
+
+def rwc():
+    d, *_ = word(SAIRA, 'RWC', 60, 80, 34, 1.2, width=108)
+    sk = math.tan(math.radians(10))
+    peaks = 'M4 66 L26 34 L36 46 L56 14 L74 40 L84 30 L116 66 Z'
+    caps = 'M56 14 L47 28 L53 25 L57 30 L62 24 L65 27 Z M26 34 L20 43 L25 41 L29 44 Z M84 30 L79 37 L84 35 L88 38 Z'
+    svg('rwc.svg', 'Rocky West Conference', f"""
+<circle cx="88" cy="26" r="11" fill="{RWC_GOLD}"/>
+<path d="{peaks}" fill="{RWC_SLATE}" stroke="#FFFFFF" stroke-width="2.5" stroke-linejoin="round"/><path d="{caps}" fill="#FFFFFF"/>
+<g transform="matrix(1 0 {-sk:.4f} 1 {sk * 80:.2f} 0)"><path d="{d}" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="5" stroke-linejoin="round"/><path d="{d}" fill="{RWC_PINE}"/></g>""")
+
+
+rwc()
+
+# Colonial 10 (Option C): a block C in red and white stripes and a navy 10 in
+# Bungee, a red star over the 1, a white edge with a thin navy outline.
+C10_NAVY, C10_RED = '#14274E', '#B22234'
+
+
+def c10():
+    cap = 46
+    widths = lambda: (word(BUNGEE, 'C', 0, 60, cap), word(BUNGEE, '10', 0, 60, cap, 1))
+    (_, lc, rc, *_), (_, ln, rn, *_) = widths()
+    cap *= min(1, 106 / (rc - lc + rn - ln + 3))
+    (_, lc, rc, *_), (_, ln, rn, *_) = widths()
+    wc, wn, gap = rc - lc, rn - ln, 3
+    x0 = 60 - (wc + gap + wn) / 2
+    dc, _, _, tc, bc = word(BUNGEE, 'C', x0 + wc / 2, 66, cap)
+    dn, *_ = word(BUNGEE, '10', x0 + wc + gap + wn / 2, 66, cap, 1)
+    stripes = ''.join(f'<rect x="0" y="{tc + i * (bc - tc) / 6.5:.2f}" width="120" height="{(bc - tc) / 13:.2f}" fill="{C10_RED}"/>' for i in range(7))
+    svg('c10.svg', 'Colonial 10', f"""
+<defs><clipPath id="c10C"><path d="{dc}"/></clipPath></defs>
+<path d="{dc} {dn}" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="6" stroke-linejoin="round"/>
+<path d="{dc} {dn}" fill="none" stroke="{C10_NAVY}" stroke-width="2.2" stroke-linejoin="round"/>
+<g clip-path="url(#c10C)"><rect width="120" height="120" fill="#FFFFFF"/>{stripes}</g>
+<path d="{dn}" fill="{C10_NAVY}"/>
+<polygon points="{star_points(60, tc - 13, 9)}" fill="{C10_RED}" stroke="#FFFFFF" stroke-width="2" stroke-linejoin="round"/>""")
+
+
+c10()

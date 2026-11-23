@@ -52,7 +52,7 @@ export const DEFAULT_LOGOS = {
   Ohio: 'https://a.espncdn.com/i/teamlogos/ncaa/500/195.png',
   "Southern Illinois": 'https://a.espncdn.com/i/teamlogos/ncaa/500/79.png',
   Northeastern: 'https://a.espncdn.com/i/teamlogos/ncaa/500/111.png',
-  "UMass Amherst": 'https://a.espncdn.com/i/teamlogos/ncaa/500/113.png',
+  "UMass": 'https://a.espncdn.com/i/teamlogos/ncaa/500/113.png',
   Lehigh: 'https://a.espncdn.com/i/teamlogos/ncaa/500/2329.png',
   Temple: 'https://a.espncdn.com/i/teamlogos/ncaa/500/218.png',
   "Rhode Island": 'https://a.espncdn.com/i/teamlogos/ncaa/500/227.png',

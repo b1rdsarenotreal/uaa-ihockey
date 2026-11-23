@@ -113,7 +113,7 @@ unless the owner asks.
 - The Rocky West Conference (the owner's, coming in; Colorado State, Denver,
   Colorado School of Mines, Montana, Montana State, North Dakota, North
   Dakota State, New Mexico, New Mexico State, UTEP, UTSA) and the Colonial 10
-  (Northeastern, UMass Amherst, Lehigh, Temple, Rhode Island, East Carolina,
+  (Northeastern, UMass, Lehigh, Temple, Rhode Island, East Carolina,
   Charlotte, George Mason, VCU) have their logos ready the same way, the
   owner's picks (Nov. 2026): `rwc.svg`, RWC slanted in Saira Black, forest
   green, before a snow-capped range and a gold sun; `c10.svg`, a block C in

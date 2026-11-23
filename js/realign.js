@@ -8,9 +8,9 @@
 // what to apply; the plan is then marked applied or skipped in this save
 // (`league.realign[planId]`), which the hub reads back.
 
-import { AAU_SCHOOLS, AAU_CONFERENCES, AAU_PROGRAMS } from './aau-schools.js?v=20261123004332';
-import { DEFAULT_LOGOS } from './logo-import.js?v=20261123004332';
-import { addConference, addTeam, draftRemoveTeam, deleteConference } from './league.js?v=20261123004332';
+import { AAU_SCHOOLS, AAU_CONFERENCES, AAU_PROGRAMS } from './aau-schools.js?v=20261123152720';
+import { DEFAULT_LOGOS } from './logo-import.js?v=20261123152720';
+import { addConference, addTeam, draftRemoveTeam, deleteConference } from './league.js?v=20261123152720';
 
 export const REALIGN_KEY = 'aau-realignment';
 // New schools start at this rating in each category; change it on the

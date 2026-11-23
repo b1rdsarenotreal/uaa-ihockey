@@ -1,16 +1,16 @@
 // Shared UI state and pieces used by every page: the league, saving,
 // team labels and logos, game cards, and the game editor.
 
-import { saveLeague } from './store.js?v=20261122204517';
-import { logoFor } from './logos.js?v=20261122204517';
-import { LOGO_ALIASES } from './data.js?v=20261122204517';
-import { ovr, winProbability, matchOdds, isKnockout, QUARTERS, OT, OT_PERIODS } from './sim.js?v=20261122204517';
-import { records, isFinal, winnerOf, resultFor, isTie, sameConf } from './standings.js?v=20261122204517';
-import { latestPoll, pollRankMap } from './polls.js?v=20261122204517';
-import { afterChange, applyResult, clearResult, simResult, deleteGame, weekName, estimateHE } from './league.js?v=20261122204517';
-import { regWeeksOf, shownSeed, regionalSeed, mcwsVenue, gameVenue } from './postseason.js?v=20261122204517';
-import { DAY_ORDER, dateOf } from './schedule.js?v=20261122204517';
-import { esc } from './util.js?v=20261122204517';
+import { saveLeague } from './store.js?v=20261123004332';
+import { logoFor } from './logos.js?v=20261123004332';
+import { LOGO_ALIASES } from './data.js?v=20261123004332';
+import { ovr, winProbability, matchOdds, isKnockout, QUARTERS, OT, OT_PERIODS } from './sim.js?v=20261123004332';
+import { records, isFinal, winnerOf, resultFor, isTie, sameConf } from './standings.js?v=20261123004332';
+import { latestPoll, pollRankMap } from './polls.js?v=20261123004332';
+import { afterChange, applyResult, clearResult, simResult, deleteGame, weekName, estimateHE } from './league.js?v=20261123004332';
+import { regWeeksOf, shownSeed, regionalSeed, mcwsVenue, gameVenue } from './postseason.js?v=20261123004332';
+import { DAY_ORDER, dateOf } from './schedule.js?v=20261123004332';
+import { esc } from './util.js?v=20261123004332';
 
 // Logo files in this app (img/conf/) carry this release's version, like the
 // scripts do, so a redrawn logo shows right away instead of a cached copy.
@@ -238,11 +238,19 @@ function gameConf(s, g) {
 }
 const gameStatus = g => (isFinal(g) ? `Final${g.pk ? '/SO' : periodNote(g) ? `/${periodNote(g)}` : ''}` : g.day);
 const venueText = (s, g) => { const v = gameVenue(s, g); return v.stadium || v.city ? [v.stadium, (v.city || '').split(',')[0]].filter(Boolean).join(', ') : ''; };
+// The favorite and its chance to win outright, the same numbers as the box
+// score's "Before the game" line (a regular-season game can end in a tie,
+// so that chance isn't split between the two teams; the owner's ask, Nov.
+// 2026). `tie` is the chance of a tie, 0 in the postseason.
+export function favoriteOdds(s, g) {
+  const o = matchOdds(s.teams[g.home], s.teams[g.away], g, { volatility: s.settings.volatility });
+  const home = o.win >= o.loss;
+  return { fav: home ? g.home : g.away, pct: Math.round((home ? o.win : o.loss) * 100), tie: Math.round(o.tie * 100) };
+}
 function favorite(s, g) {
   if (!(g.home && g.away && s.teams[g.home] && s.teams[g.away])) return '';
-  const wp = winProbability(s.teams[g.home], s.teams[g.away], g, { volatility: s.settings.volatility });
-  const fav = wp >= 0.5 ? g.home : g.away;
-  return `${esc(s.teams[fav].abbr)} ${Math.round(Math.max(wp, 1 - wp) * 100)}%`;
+  const f = favoriteOdds(s, g);
+  return `${esc(s.teams[f.fav].abbr)} ${f.pct}%${f.tie ? ` · tie ${f.tie}%` : ''}`;
 }
 
 // One team's row on a game card or box score: the logo in a box, the poll
@@ -655,9 +663,8 @@ export function compactCard(g, seedFn = () => null, { top = null } = {}) {
   let status = '';
   if (fin) status = `<span class="badge final">${gameStatus(g)}</span>`;
   else if (s.teams[g.home] && s.teams[g.away]) {
-    const wp = winProbability(s.teams[g.home], s.teams[g.away], g, { volatility: s.settings.volatility });
-    const fav = wp >= 0.5 ? g.home : g.away;
-    status = `<span class="muted">${esc(s.teams[fav].abbr)} ${Math.round(Math.max(wp, 1 - wp) * 100)}%</span><button class="btn sm bg-sim" data-simgame="${g.id}" title="Simulate this game and save the result" aria-label="Simulate this game">🎲</button>`;
+    const f = favoriteOdds(s, g);
+    status = `<span class="muted"${f.tie ? ` title="${f.pct}% to win, a tie ${f.tie}%"` : ''}>${esc(s.teams[f.fav].abbr)} ${f.pct}%${f.tie ? ` · T ${f.tie}%` : ''}</span><button class="btn sm bg-sim" data-simgame="${g.id}" title="Simulate this game and save the result" aria-label="Simulate this game">🎲</button>`;
   }
   const label = g.label ? g.label.split(' · ').slice(-1)[0] : '';
   return `<div class="bgame" data-game="${g.id}" tabindex="0" title="Click for the box score">
